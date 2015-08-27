@@ -267,23 +267,23 @@ callWithJQuery ($) ->
             @sorted = false
 
             # iterate through input, accumulating data for cells
-            PivotData.forEachRecord input, opts.derivedAttributes, (record) =>
+            PivotData.forEachRecord input, opts, (record) =>
                 @processRecord(record) if opts.filter(record)
 
         #can handle arrays or jQuery selections of tables
-        @forEachRecord = (input, derivedAttributes, f) ->
-            if $.isEmptyObject derivedAttributes
+        @forEachRecord = (input, opts, f) ->
+            if $.isEmptyObject opts.derivedAttributes
                 addRecord = f
             else
                 addRecord = (record) -> 
-                    record[k] = v(record) ? record[k] for k, v of derivedAttributes
+                    record[k] = v(record) ? record[k] for k, v of opts.derivedAttributes
                     f(record)
 
             #if it's a function, have it call us back
             if $.isFunction(input)
                 input(addRecord)
             else if $.isArray(input)
-                if $.isArray(input[0]) #array of arrays
+                if !opts.treatDataArrayAsRecords #array of arrays
                     for own i, compactRecord of input when i > 0
                         record = {}
                         record[k] = compactRecord[j] for own j, k of input[0]
@@ -375,7 +375,6 @@ callWithJQuery ($) ->
     ###
 
     pivotTableRenderer = (pivotData, opts) ->
-
         defaults =
             localeStrings:
                 totals: "Totals"
@@ -536,7 +535,6 @@ callWithJQuery ($) ->
             localeStrings: locales.en.localeStrings
 
         opts = $.extend defaults, opts
-
         result = null
         try
             pivotData = new PivotData(input, opts)
@@ -577,6 +575,7 @@ callWithJQuery ($) ->
             filter: -> true
             sorters: -> 
             localeStrings: locales[locale].localeStrings
+            treatDataArrayAsRecords: false
 
         existingOpts = @data "pivotUIOptions"
         if not existingOpts? or overwrite
@@ -594,7 +593,7 @@ callWithJQuery ($) ->
             axisValues = {}
             axisValues[x] = {} for x in tblCols
 
-            PivotData.forEachRecord input, opts.derivedAttributes, (record) ->
+            PivotData.forEachRecord input, opts, (record) ->
                 for own k, v of record when opts.filter(record)
                     v ?= "null"
                     axisValues[k][v] ?= 0

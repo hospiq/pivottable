@@ -1,5 +1,5 @@
 require('require-dir')('./gulp');
 
 var gulp = require('gulp');	
-gulp.task('default', ['makeJs', 'makeCss']);
+gulp.task('default', ['makeJs', 'makeCss', 'watch']);
 

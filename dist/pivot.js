@@ -542,7 +542,7 @@
         this.colTotals = {};
         this.allTotal = this.aggregator(this, [], []);
         this.sorted = false;
-        PivotData.forEachRecord(input, opts.derivedAttributes, (function(_this) {
+        PivotData.forEachRecord(input, opts, (function(_this) {
           return function(record) {
             if (opts.filter(record)) {
               return _this.processRecord(record);
@@ -551,16 +551,17 @@
         })(this));
       }
 
-      PivotData.forEachRecord = function(input, derivedAttributes, f) {
+      PivotData.forEachRecord = function(input, opts, f) {
         var addRecord, compactRecord, i, j, k, l, len1, record, ref, results, results1, tblCols;
-        if ($.isEmptyObject(derivedAttributes)) {
+        if ($.isEmptyObject(opts.derivedAttributes)) {
           addRecord = f;
         } else {
           addRecord = function(record) {
-            var k, ref, v;
-            for (k in derivedAttributes) {
-              v = derivedAttributes[k];
-              record[k] = (ref = v(record)) != null ? ref : record[k];
+            var k, ref, ref1, v;
+            ref = opts.derivedAttributes;
+            for (k in ref) {
+              v = ref[k];
+              record[k] = (ref1 = v(record)) != null ? ref1 : record[k];
             }
             return f(record);
           };
@@ -568,7 +569,7 @@
         if ($.isFunction(input)) {
           return input(addRecord);
         } else if ($.isArray(input)) {
-          if ($.isArray(input[0])) {
+          if (!opts.treatDataArrayAsRecords) {
             results = [];
             for (i in input) {
               if (!hasProp.call(input, i)) continue;
@@ -985,7 +986,8 @@
           return true;
         },
         sorters: function() {},
-        localeStrings: locales[locale].localeStrings
+        localeStrings: locales[locale].localeStrings,
+        treatDataArrayAsRecords: false
       };
       existingOpts = this.data("pivotUIOptions");
       if ((existingOpts == null) || overwrite) {
@@ -1017,7 +1019,7 @@
           x = tblCols[l];
           axisValues[x] = {};
         }
-        PivotData.forEachRecord(input, opts.derivedAttributes, function(record) {
+        PivotData.forEachRecord(input, opts, function(record) {
           var base, results, v;
           results = [];
           for (k in record) {
