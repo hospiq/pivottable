@@ -425,7 +425,10 @@ callWithJQuery ($) ->
                 if x != -1
                     th = document.createElement("th")
                     th.className = "pvtColLabel"
-                    th.innerHTML = colKey[j]
+                    if opts.formatHeader
+                        th.innerHTML = opts.formatHeader(colKey[j], colAttrs[j]);
+                    else
+                        th.innerHTML = colKey[j]
                     th.setAttribute("colspan", x)
                     if parseInt(j) == colAttrs.length-1 and rowAttrs.length != 0
                         th.setAttribute("rowspan", 2)
@@ -461,7 +464,11 @@ callWithJQuery ($) ->
                 if x != -1
                     th = document.createElement("th")
                     th.className = "pvtRowLabel"
-                    th.innerHTML = txt
+                    # console.log(txt, i, rowAttrs);
+                    if opts.formatHeader
+                        th.innerHTML = opts.formatHeader(txt, rowAttrs[j]);
+                    else
+                        th.innerHTML = txt
                     th.setAttribute("rowspan", x)
                     if parseInt(j) == rowAttrs.length-1 and colAttrs.length !=0
                         th.setAttribute("colspan",2)
