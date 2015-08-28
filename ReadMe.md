@@ -23,28 +23,28 @@ PivotTable.js' basic function is to turn a data set into a summary table and the
 
 ##Where's the demo?
 
-There are lots on the [examples page](http://nicolas.kruchten.com/pivottable/examples/index.html) but here are some good entry points:
+There are lots on the [examples page](https://hospiq.github.io/pivottable/examples/index.html) but here are some good entry points:
 
 * [a simple demo running on the "Canadian Parliament 2012" dataset](http://nicolaskruchten.github.io/pivottable/examples/mps_prepop.html)
 * [fully-loaded demo running on the 700+ datasets that ship with R](http://nicolas.kruchten.com/pivottable/examples/rcsvs.html)
-* [fully-loaded demo where you provide a CSV file for input](http://nicolaskruchten.github.io/pivottable/examples/fully_loaded.html)
+* [fully-loaded demo where you provide a CSV file for input](https://hospiq.github.io/pivottable/examples/fully_loaded.html)
 
 ##How do I use the UI?
 
-PivotTable.js implements a pivot table drag'n'drop UI similar to that found in popular spreadsheet programs. You can drag attributes into/out of the row/column areas, and choose a summary function. There is a [step-by-step tutorial](https://github.com/nicolaskruchten/pivottable/wiki/UI-Tutorial) in the wiki but the following animation gives you a taste of the interaction. It's based on the [Canadian Parliament 2012 dataset](https://github.com/nicolaskruchten/pivottable/blob/master/examples/mps.csv).
+PivotTable.js implements a pivot table drag'n'drop UI similar to that found in popular spreadsheet programs. You can drag attributes into/out of the row/column areas, and choose a summary function. There is a [step-by-step tutorial](https://github.com/nicolaskruchten/pivottable/wiki/UI-Tutorial) in the wiki but the following animation gives you a taste of the interaction. It's based on the [Canadian Parliament 2012 dataset](https://github.com/hospiq/pivottable/blob/master/examples/mps.csv).
 
 ![image](http://nicolas.kruchten.com/pivottable/images/animation.gif)
 
 
 ##How do I use the code?
 
-You first need to load jQuery and the PivotTable.js scripts (`pivot.min.js` and any plugins or source maps), which can be done the normal way (download the files from the [`dist`](https://github.com/nicolaskruchten/pivottable/tree/master/dist) directory and reference them), or loaded from [CDNJS](https://cdnjs.com/libraries/pivottable), or via [NPM](https://www.npmjs.com/package/pivottable) with `npm install pivottable` or via [Bower](http://bower.io/) with `bower install pivottable`.
+You first need to load jQuery and the PivotTable.js scripts (`pivot.min.js` and any plugins or source maps), which can be done the normal way (download the files from the [`dist`](https://github.com/hospiq/pivottable/tree/master/dist) directory and reference them), or loaded from [CDNJS](https://cdnjs.com/libraries/pivottable), or via [NPM](https://www.npmjs.com/package/pivottable) with `npm install pivottable` or via [Bower](http://bower.io/) with `bower install pivottable`.
 
 There are two main functions provided by PivotTable.js: `pivot()` and `pivotUI()`, both implemented as jQuery plugins, as well as a bunch of helpers and templates.
 
 ### `pivot()`
 
-Once you've loaded jQuery and pivot.js, this code ([demo](http://nicolaskruchten.github.io/pivottable/examples/simple.html)):
+Once you've loaded jQuery and pivot.js, this code ([demo](https://hospiq.github.io/pivottable/examples/simple.html)):
 
 	$("#output").pivot(
 	    [
@@ -63,7 +63,7 @@ appends this table to `$("#output")` (the default, *overridable* behaviour is to
 
 ### `pivotUI()`
 
-A slight change to the code (calling `pivotUI()` instead of `pivot()` ) yields the same table with a drag'n'drop UI around it, so long as you've imported jQueryUI ([demo](http://nicolaskruchten.github.io/pivottable/examples/simple_ui.html)):
+A slight change to the code (calling `pivotUI()` instead of `pivot()` ) yields the same table with a drag'n'drop UI around it, so long as you've imported jQueryUI ([demo](https://hospiq.github.io/pivottable/examples/simple_ui.html)):
 
 	$("#output").pivotUI(
 	    [
