@@ -331,8 +331,8 @@ callWithJQuery ($) ->
         processRecord: (record) -> #this code is called in a tight loop
             colKey = []
             rowKey = []
-            colKey.push record[x] ? "null" for x in @colAttrs 
-            rowKey.push record[x] ? "null" for x in @rowAttrs
+            colKey.push record[x] ? null for x in @colAttrs 
+            rowKey.push record[x] ? null for x in @rowAttrs
             flatRowKey = rowKey.join(String.fromCharCode(0))
             flatColKey = colKey.join(String.fromCharCode(0))
 

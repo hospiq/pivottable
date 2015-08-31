@@ -670,12 +670,12 @@
         ref = this.colAttrs;
         for (l = 0, len1 = ref.length; l < len1; l++) {
           x = ref[l];
-          colKey.push((ref1 = record[x]) != null ? ref1 : "null");
+          colKey.push((ref1 = record[x]) != null ? ref1 : null);
         }
         ref2 = this.rowAttrs;
         for (n = 0, len2 = ref2.length; n < len2; n++) {
           x = ref2[n];
-          rowKey.push((ref3 = record[x]) != null ? ref3 : "null");
+          rowKey.push((ref3 = record[x]) != null ? ref3 : null);
         }
         flatRowKey = rowKey.join(String.fromCharCode(0));
         flatColKey = colKey.join(String.fromCharCode(0));
