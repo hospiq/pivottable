@@ -664,18 +664,18 @@
       };
 
       PivotData.prototype.processRecord = function(record) {
-        var colKey, flatColKey, flatRowKey, l, len1, len2, n, ref, ref1, ref2, ref3, rowKey, x;
+        var colKey, flatColKey, flatRowKey, l, len1, len2, n, ref, ref1, rowKey, x;
         colKey = [];
         rowKey = [];
         ref = this.colAttrs;
         for (l = 0, len1 = ref.length; l < len1; l++) {
           x = ref[l];
-          colKey.push((ref1 = record[x]) != null ? ref1 : null);
+          colKey.push(record[x]);
         }
-        ref2 = this.rowAttrs;
-        for (n = 0, len2 = ref2.length; n < len2; n++) {
-          x = ref2[n];
-          rowKey.push((ref3 = record[x]) != null ? ref3 : null);
+        ref1 = this.rowAttrs;
+        for (n = 0, len2 = ref1.length; n < len2; n++) {
+          x = ref1[n];
+          rowKey.push(record[x]);
         }
         flatRowKey = rowKey.join(String.fromCharCode(0));
         flatColKey = colKey.join(String.fromCharCode(0));
