@@ -636,9 +636,11 @@
           var comparison, i, sorter;
           for (i in sortersArr) {
             sorter = sortersArr[i];
-            comparison = sorter(a[i], b[i]);
-            if (comparison !== 0) {
-              return comparison;
+            if (sorter.length === 2) {
+              comparison = sorter(a[i], b[i]);
+              if (comparison !== 0) {
+                return comparison;
+              }
             }
           }
           return 0;

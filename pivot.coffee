@@ -310,8 +310,9 @@ callWithJQuery ($) ->
             sortersArr = (getSort(@sorters, a) for a in attrs)
             (a,b) -> 
                 for i, sorter of sortersArr
-                    comparison = sorter(a[i], b[i])
-                    return comparison if comparison != 0
+                    if sorter.length == 2
+                        comparison = sorter(a[i], b[i])
+                        return comparison if comparison != 0
                 return 0
 
         sortKeys: () =>
