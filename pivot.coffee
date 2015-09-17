@@ -409,6 +409,7 @@ callWithJQuery ($) ->
                 len++
             return len
 
+        thead = document.createElement("thead")
         #the first few rows are for col headers
         for own j, c of colAttrs
             tr = document.createElement("tr")
@@ -440,7 +441,7 @@ callWithJQuery ($) ->
                 th.innerHTML = opts.localeStrings.totals
                 th.setAttribute("rowspan", colAttrs.length + (if rowAttrs.length ==0 then 0 else 1))
                 tr.appendChild th
-            result.appendChild tr
+            thead.appendChild tr
 
         #then a row for row header headers
         if rowAttrs.length !=0
@@ -455,7 +456,9 @@ callWithJQuery ($) ->
                 th.className = "pvtTotalLabel"
                 th.innerHTML = opts.localeStrings.totals
             tr.appendChild th
-            result.appendChild tr
+            thead.appendChild tr
+
+        result.appendChild thead
 
         #now the actual data rows, with their row headers and totals
         for own i, rowKey of rowKeys

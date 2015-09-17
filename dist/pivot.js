@@ -738,7 +738,7 @@
     Default Renderer for hierarchical table layout
      */
     pivotTableRenderer = function(pivotData, opts) {
-      var aggregator, c, colAttrs, colKey, colKeys, defaults, i, j, r, result, rowAttrs, rowKey, rowKeys, spanSize, td, th, totalAggregator, tr, txt, val, x;
+      var aggregator, c, colAttrs, colKey, colKeys, defaults, i, j, r, result, rowAttrs, rowKey, rowKeys, spanSize, td, th, thead, totalAggregator, tr, txt, val, x;
       defaults = {
         localeStrings: {
           totals: "Totals"
@@ -779,6 +779,7 @@
         }
         return len;
       };
+      thead = document.createElement("thead");
       for (j in colAttrs) {
         if (!hasProp.call(colAttrs, j)) continue;
         c = colAttrs[j];
@@ -819,7 +820,7 @@
           th.setAttribute("rowspan", colAttrs.length + (rowAttrs.length === 0 ? 0 : 1));
           tr.appendChild(th);
         }
-        result.appendChild(tr);
+        thead.appendChild(tr);
       }
       if (rowAttrs.length !== 0) {
         tr = document.createElement("tr");
@@ -837,8 +838,9 @@
           th.innerHTML = opts.localeStrings.totals;
         }
         tr.appendChild(th);
-        result.appendChild(tr);
+        thead.appendChild(tr);
       }
+      result.appendChild(thead);
       for (i in rowKeys) {
         if (!hasProp.call(rowKeys, i)) continue;
         rowKey = rowKeys[i];
