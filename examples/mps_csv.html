@@ -5,7 +5,7 @@
         <!-- external libs from cdnjs -->
         <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
         <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
-        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery-csv/0.71/jquery.csv-0.71.min.js"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/4.1.2/papaparse.min.js"></script>
 
         <!-- PivotTable.js libs from ../dist -->
         <link rel="stylesheet" type="text/css" href="../dist/pivot.css">
@@ -13,29 +13,35 @@
         <style>
             body {font-family: Verdana;}
         </style>
+
+        <!-- optional: mobile support with jqueryui-touch-punch -->
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui-touch-punch/0.2.3/jquery.ui.touch-punch.min.js"></script>
+
+        <!-- for examples only! script to show code to user -->
+        <script type="text/javascript" src="show_code.js"></script>
     </head>
     <body>
         <script type="text/javascript">
-            $(function(){
-                var derivers = $.pivotUtilities.derivers;
+    // This example loads the "Canadian Parliament 2012"
+    // dataset from a CSV instead of from JSON.
 
-                $.get("mps.csv", function(mps) {
-                    $("#output").pivotUI($.csv.toArrays(mps), {
-                        derivedAttributes: {
-                            "Age Bin": derivers.bin("Age", 10),
-                            "Gender Imbalance": function(mp) {
-                                return mp["Gender"] == "Male" ? 1 : -1;
-                            }
-                        }
-                    });
+    $(function(){
+        Papa.parse("mps.csv", {
+            download: true,
+            skipEmptyLines: true,
+            complete: function(parsed){
+                $("#output").pivotUI(parsed.data, {
+                    rows: ["Province"], cols: ["Party"]
                 });
-             });
+            }
+        });
+     });
         </script>
-        <p><a href="index.html">&laquo; back to examples</a></p>
+        <p><a href="index.html">&laquo; back to PivotTable.js examples</a></p>
 
-        <p style="width: 800px">This example loads the "Canadian Parliament 2012" dataset from a CSV instead of from JSON.</p>
+        <p style="width: 800px"></p>
 
-        
+
         <div id="output" style="margin: 30px;"></div>
 
     </body>

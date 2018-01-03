@@ -22,33 +22,29 @@
               text-indent: 2px;
             }
         </style>
+
+        <!-- optional: mobile support with jqueryui-touch-punch -->
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui-touch-punch/0.2.3/jquery.ui.touch-punch.min.js"></script>
+
+        <!-- for examples only! script to show code to user -->
+        <script type="text/javascript" src="show_code.js"></script>
     </head>
     <body>
         <script type="text/javascript">
-            $(function(){
-                var derivers = $.pivotUtilities.derivers;
-                var renderers = $.extend($.pivotUtilities.renderers, 
-                    $.pivotUtilities.d3_renderers);
+    // This example of a D3 renderer shows a treemap.
 
-                $.getJSON("mps.json", function(mps) {
-                    $("#output").pivotUI(mps, {
-                        renderers: renderers,
-                        derivedAttributes: {
-                            "Age Bin": derivers.bin("Age", 10),
-                            "Gender Imbalance": function(mp) {
-                                return mp["Gender"] == "Male" ? 1 : -1;
-                            }
-                        },
-                        cols: [], rows: ["Province", "Party"],
-                        rendererName: "Treemap"
-                    });
-                });
-             });
-        </script>
+    $(function(){
+        $.getJSON("mps.json", function(mps) {
+            $("#output").pivotUI(mps, {
+                renderers: $.pivotUtilities.d3_renderers,
+                cols: [], rows: ["Province", "Party"],
+                rendererName: "Treemap"
+            });
+        });
+     });
+</script>
 
-        <p><a href="index.html">&laquo; back to examples</a></p>
-
-        <p style="width: 800px">This example of a D3 renderer shows a treemap.</p>
+        <p><a href="index.html">&laquo; back to PivotTable.js examples</a></p>
 
         <div id="output" style="margin: 30px;"></div>
 
