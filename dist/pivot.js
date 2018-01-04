@@ -658,25 +658,27 @@
         this.colTotals = {};
         this.allTotal = this.aggregator(this, [], []);
         this.sorted = false;
-        PivotData.forEachRecord(this.input, this.derivedAttributes, (function(_this) {
+        this.opts = opts;
+        PivotData.forEachRecord(input, opts, (function(_this) {
           return function(record) {
-            if (_this.filter(record)) {
+            if (opts.filter(record)) {
               return _this.processRecord(record);
             }
           };
         })(this));
       }
 
-      PivotData.forEachRecord = function(input, derivedAttributes, f) {
+      PivotData.forEachRecord = function(input, opts, f) {
         var addRecord, compactRecord, i, j, k, l, len1, record, ref, results, results1, tblCols;
-        if ($.isEmptyObject(derivedAttributes)) {
+        if ($.isEmptyObject(opts.derivedAttributes)) {
           addRecord = f;
         } else {
           addRecord = function(record) {
-            var k, ref, v;
-            for (k in derivedAttributes) {
-              v = derivedAttributes[k];
-              record[k] = (ref = v(record)) != null ? ref : record[k];
+            var k, ref, ref1, v;
+            ref = opts.derivedAttributes;
+            for (k in ref) {
+              v = ref[k];
+              record[k] = (ref1 = v(record)) != null ? ref1 : record[k];
             }
             return f(record);
           };
@@ -684,7 +686,7 @@
         if ($.isFunction(input)) {
           return input(addRecord);
         } else if ($.isArray(input)) {
-          if ($.isArray(input[0])) {
+          if (!opts.treatDataArrayAsRecords) {
             results = [];
             for (i in input) {
               if (!hasProp.call(input, i)) continue;
@@ -728,13 +730,14 @@
       };
 
       PivotData.prototype.forEachMatchingRecord = function(criteria, callback) {
-        return PivotData.forEachRecord(this.input, this.derivedAttributes, (function(_this) {
+        return PivotData.forEachRecord(this.input, this.opts, (function(_this) {
           return function(record) {
             var k, ref, v;
-            if (!_this.filter(record)) {
+            if (!_this.opts.filter(record)) {
               return;
             }
             for (k in criteria) {
+              if (!hasProp.call(criteria, k)) continue;
               v = criteria[k];
               if (v !== ((ref = record[k]) != null ? ref : "null")) {
                 return;
@@ -910,14 +913,15 @@
     Default Renderer for hierarchical table layout
      */
     pivotTableRenderer = function(pivotData, opts) {
-      var aggregator, c, colAttrs, colKey, colKeys, defaults, getClickHandler, i, j, r, result, rowAttrs, rowKey, rowKeys, spanSize, tbody, td, th, thead, totalAggregator, tr, txt, val, x;
+      var aggregator, c, colAttrs, colKey, colKeys, defaults, getClickHandler, i, j, l, len1, len2, len3, len4, len5, len6, n, o, r, result, rowAttrs, rowKey, rowKeys, spanSize, t, tbody, td, th, thead, totalAggregator, tr, txt, u, val, w, x;
       defaults = {
         table: {
           clickCallback: null
         },
         localeStrings: {
           totals: "Totals"
-        }
+        },
+        treatDataArrayAsRecords: false
       };
       opts = $.extend(true, {}, defaults, opts);
       colAttrs = pivotData.colAttrs;
@@ -926,17 +930,15 @@
       colKeys = pivotData.getColKeys();
       if (opts.table.clickCallback) {
         getClickHandler = function(value, rowValues, colValues) {
-          var attr, filters, i;
+          var attr, filters, i, l, len1, len2, n;
           filters = {};
-          for (i in colAttrs) {
-            if (!hasProp.call(colAttrs, i)) continue;
+          for (i = l = 0, len1 = colAttrs.length; l < len1; i = ++l) {
             attr = colAttrs[i];
             if (colValues[i] != null) {
               filters[attr] = colValues[i];
             }
           }
-          for (i in rowAttrs) {
-            if (!hasProp.call(rowAttrs, i)) continue;
+          for (i = n = 0, len2 = rowAttrs.length; n < len2; i = ++n) {
             attr = rowAttrs[i];
             if (rowValues[i] != null) {
               filters[attr] = rowValues[i];
@@ -978,8 +980,7 @@
         return len;
       };
       thead = document.createElement("thead");
-      for (j in colAttrs) {
-        if (!hasProp.call(colAttrs, j)) continue;
+      for (j = l = 0, len1 = colAttrs.length; l < len1; j = ++l) {
         c = colAttrs[j];
         tr = document.createElement("tr");
         if (parseInt(j) === 0 && rowAttrs.length !== 0) {
@@ -992,14 +993,17 @@
         th.className = "pvtAxisLabel";
         th.textContent = c;
         tr.appendChild(th);
-        for (i in colKeys) {
-          if (!hasProp.call(colKeys, i)) continue;
+        for (i = n = 0, len2 = colKeys.length; n < len2; i = ++n) {
           colKey = colKeys[i];
           x = spanSize(colKeys, parseInt(i), parseInt(j));
           if (x !== -1) {
             th = document.createElement("th");
             th.className = "pvtColLabel";
-            th.textContent = colKey[j];
+            if (opts.formatHeader) {
+              th.textContent = opts.formatHeader(colKey[j], colAttrs[j]);
+            } else {
+              th.textContent = colKey[j];
+            }
             th.setAttribute("colspan", x);
             if (parseInt(j) === colAttrs.length - 1 && rowAttrs.length !== 0) {
               th.setAttribute("rowspan", 2);
@@ -1018,8 +1022,7 @@
       }
       if (rowAttrs.length !== 0) {
         tr = document.createElement("tr");
-        for (i in rowAttrs) {
-          if (!hasProp.call(rowAttrs, i)) continue;
+        for (i = o = 0, len3 = rowAttrs.length; o < len3; i = ++o) {
           r = rowAttrs[i];
           th = document.createElement("th");
           th.className = "pvtAxisLabel";
@@ -1036,8 +1039,7 @@
       }
       result.appendChild(thead);
       tbody = document.createElement("tbody");
-      for (i in rowKeys) {
-        if (!hasProp.call(rowKeys, i)) continue;
+      for (i = t = 0, len4 = rowKeys.length; t < len4; i = ++t) {
         rowKey = rowKeys[i];
         tr = document.createElement("tr");
         for (j in rowKey) {
@@ -1047,7 +1049,11 @@
           if (x !== -1) {
             th = document.createElement("th");
             th.className = "pvtRowLabel";
-            th.textContent = txt;
+            if (opts.formatHeader) {
+              th.textContent = opts.formatHeader(txt, rowAttrs[j]);
+            } else {
+              th.textContent = txt;
+            }
             th.setAttribute("rowspan", x);
             if (parseInt(j) === rowAttrs.length - 1 && colAttrs.length !== 0) {
               th.setAttribute("colspan", 2);
@@ -1055,8 +1061,7 @@
             tr.appendChild(th);
           }
         }
-        for (j in colKeys) {
-          if (!hasProp.call(colKeys, j)) continue;
+        for (j = u = 0, len5 = colKeys.length; u < len5; j = ++u) {
           colKey = colKeys[j];
           aggregator = pivotData.getAggregator(rowKey, colKey);
           val = aggregator.value();
@@ -1088,8 +1093,7 @@
       th.innerHTML = opts.localeStrings.totals;
       th.setAttribute("colspan", rowAttrs.length + (colAttrs.length === 0 ? 0 : 1));
       tr.appendChild(th);
-      for (j in colKeys) {
-        if (!hasProp.call(colKeys, j)) continue;
+      for (j = w = 0, len6 = colKeys.length; w < len6; j = ++w) {
         colKey = colKeys[j];
         totalAggregator = pivotData.getAggregator([], colKey);
         val = totalAggregator.value();
@@ -1217,7 +1221,8 @@
         filter: function() {
           return true;
         },
-        sorters: {}
+        sorters: {},
+        treatDataArrayAsRecords: false
       };
       localeStrings = $.extend(true, {}, locales.en.localeStrings, locales[locale].localeStrings);
       localeDefaults = {
@@ -1236,7 +1241,7 @@
         attrValues = {};
         materializedInput = [];
         recordsProcessed = 0;
-        PivotData.forEachRecord(input, opts.derivedAttributes, function(record) {
+        PivotData.forEachRecord(input, opts, function(record) {
           var attr, base, ref, value;
           if (!opts.filter(record)) {
             return;

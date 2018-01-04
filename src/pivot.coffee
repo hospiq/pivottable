@@ -320,6 +320,7 @@ callWithJQuery ($) ->
             @colTotals = {}
             @allTotal = @aggregator(this, [], [])
             @sorted = false
+            @opts = opts
 
             # iterate through input, accumulating data for cells
             PivotData.forEachRecord input, opts, (record) =>
@@ -356,9 +357,9 @@ callWithJQuery ($) ->
                 throw new Error("unknown input format")
 
         forEachMatchingRecord: (criteria, callback) ->
-            PivotData.forEachRecord @input, @derivedAttributes, (record) =>
-                return if not @filter(record)
-                for k, v of criteria
+            PivotData.forEachRecord @input, @opts, (record) =>
+                return if not @opts.filter(record)
+                for own k, v of criteria
                     return if v != (record[k] ? "null")
                 callback(record)
 
@@ -445,6 +446,7 @@ callWithJQuery ($) ->
         defaults =
             table: clickCallback: null
             localeStrings: totals: "Totals"
+            treatDataArrayAsRecords: false
 
         opts = $.extend(true, {}, defaults, opts)
 
@@ -456,8 +458,8 @@ callWithJQuery ($) ->
         if opts.table.clickCallback
             getClickHandler = (value, rowValues, colValues) ->
                 filters = {}
-                filters[attr] = colValues[i] for own i, attr of colAttrs when colValues[i]?
-                filters[attr] = rowValues[i] for own i, attr of rowAttrs when rowValues[i]?
+                filters[attr] = colValues[i] for attr, i in colAttrs when colValues[i]?
+                filters[attr] = rowValues[i] for attr, i in rowAttrs when rowValues[i]?
                 return (e) -> opts.table.clickCallback(e, value, filters, pivotData)
 
         #now actually build the output
@@ -482,10 +484,9 @@ callWithJQuery ($) ->
                 len++
             return len
 
-        thead = document.createElement("thead")
         #the first few rows are for col headers
         thead = document.createElement("thead")
-        for own j, c of colAttrs
+        for c, j in colAttrs
             tr = document.createElement("tr")
             if parseInt(j) == 0 and rowAttrs.length != 0
                 th = document.createElement("th")
@@ -496,7 +497,7 @@ callWithJQuery ($) ->
             th.className = "pvtAxisLabel"
             th.textContent = c
             tr.appendChild th
-            for own i, colKey of colKeys
+            for colKey, i in colKeys
                 x = spanSize(colKeys, parseInt(i), parseInt(j))
                 if x != -1
                     th = document.createElement("th")
@@ -520,7 +521,7 @@ callWithJQuery ($) ->
         #then a row for row header headers
         if rowAttrs.length !=0
             tr = document.createElement("tr")
-            for own i, r of rowAttrs
+            for r, i in rowAttrs
                 th = document.createElement("th")
                 th.className = "pvtAxisLabel"
                 th.textContent = r
@@ -536,7 +537,7 @@ callWithJQuery ($) ->
 
         #now the actual data rows, with their row headers and totals
         tbody = document.createElement("tbody")
-        for own i, rowKey of rowKeys
+        for rowKey, i in rowKeys
             tr = document.createElement("tr")
             for own j, txt of rowKey
                 x = spanSize(rowKeys, parseInt(i), parseInt(j))
@@ -552,7 +553,7 @@ callWithJQuery ($) ->
                     if parseInt(j) == rowAttrs.length-1 and colAttrs.length !=0
                         th.setAttribute("colspan",2)
                     tr.appendChild th
-            for own j, colKey of colKeys #this is the tight loop
+            for colKey, j in colKeys #this is the tight loop
                 aggregator = pivotData.getAggregator(rowKey, colKey)
                 val = aggregator.value()
                 td = document.createElement("td")
@@ -582,7 +583,7 @@ callWithJQuery ($) ->
         th.innerHTML = opts.localeStrings.totals
         th.setAttribute("colspan", rowAttrs.length + (if colAttrs.length == 0 then 0 else 1))
         tr.appendChild th
-        for own j, colKey of colKeys
+        for colKey, j in colKeys
             totalAggregator = pivotData.getAggregator([], colKey)
             val = totalAggregator.value()
             td = document.createElement("td")
