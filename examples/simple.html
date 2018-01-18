@@ -4,7 +4,6 @@
         <title>Pivot Demo</title>
         <!-- external libs from cdnjs -->
         <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
-        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
 
         <!-- PivotTable.js libs from ../dist -->
         <link rel="stylesheet" type="text/css" href="../dist/pivot.css">
@@ -12,29 +11,31 @@
         <style>
             body {font-family: Verdana;}
         </style>
+
+        <!-- for examples only! script to show code to user -->
+        <script type="text/javascript" src="show_code.js"></script>
     </head>
     <body>
         <script type="text/javascript">
-            $(function(){
-                        $("#output").pivot(
-        [
-            {color: "blue", shape: "circle"},
-            {color: "red", shape: "triangle"}
-        ],
-        {
-            rows: ["color"],
-            cols: ["shape"]
-        }
-    );
-             });
+    // This example is the most basic usage of pivot()
+
+    $(function(){
+        $("#output").pivot(
+            [
+                {color: "blue", shape: "circle"},
+                {color: "red", shape: "triangle"}
+            ],
+            {
+                rows: ["color"],
+                cols: ["shape"]
+            }
+        );
+     });
         </script>
 
-        <p><a href="index.html">&laquo; back to examples</a></p>
+        <p><a href="index.html">&laquo; back to PivotTable.js examples</a></p>
 
-        <p style="width: 800px">This example is the most basic usage of pivot().</p>
-
-        
-        <div id="output" style="margin: 10px;"></div>
+        <div id="output" style="margin: 30px;"></div>
 
     </body>
 </html>

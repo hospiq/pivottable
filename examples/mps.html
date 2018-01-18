@@ -9,33 +9,39 @@
         <!-- PivotTable.js libs from ../dist -->
         <link rel="stylesheet" type="text/css" href="../dist/pivot.css">
         <script type="text/javascript" src="../dist/pivot.js"></script>
-        
+
         <style>
             body {font-family: Verdana;}
         </style>
+
+        <!-- optional: mobile support with jqueryui-touch-punch -->
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui-touch-punch/0.2.3/jquery.ui.touch-punch.min.js"></script>
+
+        <!-- for examples only! script to show code to user -->
+        <script type="text/javascript" src="show_code.js"></script>
     </head>
     <body>
         <script type="text/javascript">
-            $(function(){
-                var derivers = $.pivotUtilities.derivers;
+    // This example loads the "Canadian Parliament 2012" dataset
+    // and adds derived attributes: "Age Bin" and "Gender Imbalance".
 
-                $.getJSON("mps.json", function(mps) {
-                    $("#output").pivotUI(mps, {
-                        derivedAttributes: {
-                            "Age Bin": derivers.bin("Age", 10),
-                            "Gender Imbalance": function(mp) {
-                                return mp["Gender"] == "Male" ? 1 : -1;
-                            }
-                        }
-                    });
-                });
-             });
+    $(function(){
+        var derivers = $.pivotUtilities.derivers;
+
+        $.getJSON("mps.json", function(mps) {
+            $("#output").pivotUI(mps, {
+                derivedAttributes: {
+                    "Age Bin": derivers.bin("Age", 10),
+                    "Gender Imbalance": function(mp) {
+                        return mp["Gender"] == "Male" ? 1 : -1;
+                    }
+                }
+            });
+        });
+     });
         </script>
-        <p><a href="index.html">&laquo; back to examples</a></p>
+        <p><a href="index.html">&laquo; back to PivotTable.js examples</a></p>
 
-        <p style="width: 800px">This example simply loads up a pivot table with the "Canadian Parliament 2012" dataset, ready for interaction.</p>
-
-        
         <div id="output" style="margin: 30px;"></div>
 
     </body>

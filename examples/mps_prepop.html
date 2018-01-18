@@ -12,35 +12,43 @@
         <style>
             body {font-family: Verdana;}
         </style>
+
+        <!-- optional: mobile support with jqueryui-touch-punch -->
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui-touch-punch/0.2.3/jquery.ui.touch-punch.min.js"></script>
+
+        <!-- for examples only! script to show code to user -->
+        <script type="text/javascript" src="show_code.js"></script>
     </head>
     <body>
         <script type="text/javascript">
-            $(function(){
-                var derivers = $.pivotUtilities.derivers;
+    // This example shows how to prepopulate the UI on
+    // load using the "Canadian Parliament 2012" dataset.
 
-                $.getJSON("mps.json", function(mps) {
-                    $("#output").pivotUI(mps, {
-                        derivedAttributes: {
-                            "Age Bin": derivers.bin("Age", 10),
-                            "Gender Imbalance": function(mp) {
-                                return mp["Gender"] == "Male" ? 1 : -1;
-                            }
-                        },
-                        rows: ["Province"],
-                        cols: ["Party"],
-                        aggregatorName: "Integer Sum",
-                        vals: ["Age"],
-                        rendererName: "Heatmap"
-                    });
-                });
-             });
+    $(function(){
+        $.getJSON("mps.json", function(mps) {
+            $("#output").pivotUI(mps, {
+                rows: ["Province"],
+                cols: ["Party"],
+                aggregatorName: "Integer Sum",
+                vals: ["Age"],
+                rendererName: "Heatmap",
+                rendererOptions: {
+                    table: {
+                        clickCallback: function(e, value, filters, pivotData){
+                            var names = [];
+                            pivotData.forEachMatchingRecord(filters,
+                                function(record){ names.push(record.Name); });
+                            alert(names.join("\n"));
+                        }
+                    }
+                }
+            });
+        });
+     });
         </script>
 
-        <p><a href="index.html">&laquo; back to examples</a></p>
+        <p><a href="index.html">&laquo; back to PivotTable.js examples</a></p>
 
-        <p style="width: 800px">This example shows how to prepopulate the UI on load using the "Canadian Parliament 2012" dataset.</p>
-
-        
         <div id="output" style="margin: 30px;"></div>
 
     </body>

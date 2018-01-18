@@ -12,29 +12,34 @@
         <style>
             body {font-family: Verdana;}
         </style>
+
+        <!-- optional: mobile support with jqueryui-touch-punch -->
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui-touch-punch/0.2.3/jquery.ui.touch-punch.min.js"></script>
+
+        <!-- for examples only! script to show code to user -->
+        <script type="text/javascript" src="show_code.js"></script>
     </head>
     <body>
         <script type="text/javascript">
-            $(function(){
-                        $("#output").pivotUI(
-        [ 
-            {color: "blue", shape: "circle"}, 
-            {color: "red", shape: "triangle"}
-        ], 
-        { 
-            rows: ["color"], 
-            cols: ["shape"] 
-        }
-    );
-             });
+    // This example is the most basic usage of pivotUI()
+
+    $(function(){
+        $("#output").pivotUI(
+            [
+                {color: "blue", shape: "circle"},
+                {color: "red", shape: "triangle"}
+            ],
+            {
+                rows: ["color"],
+                cols: ["shape"]
+            }
+        );
+     });
         </script>
 
-        <p><a href="index.html">&laquo; back to examples</a></p>
+        <p><a href="index.html">&laquo; back to PivotTable.js examples</a></p>
 
-        <p style="width: 800px">This example is the most basic usage of pivotUI().</p>
-
-        
-        <div id="output" style="margin: 10px;"></div>
+        <div id="output" style="margin: 30px;"></div>
 
     </body>
 </html>
