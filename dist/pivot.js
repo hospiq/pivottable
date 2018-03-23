@@ -20,7 +20,7 @@
     /*
     Utilities
      */
-    var PivotData, addSeparators, aggregatorTemplates, aggregators, dayNamesEn, derivers, getSort, locales, mthNamesEn, naturalSort, numberFormat, pivotTableRenderer, rd, renderers, rx, rz, sortAs, usFmt, usFmtInt, usFmtPct, zeroPad;
+    var PivotData, addSeparators, aggregatorTemplates, aggregators, dayNamesEn, derivers, emptyValue, getSort, locales, mthNamesEn, naturalSort, numberFormat, pivotTableRenderer, rd, renderers, rx, rz, sortAs, usFmt, usFmtInt, usFmtPct, zeroPad;
     addSeparators = function(nStr, thousandsSep, decimalSep) {
       var rgx, x, x1, x2;
       nStr += '';
@@ -62,6 +62,7 @@
       scaler: 100,
       suffix: "%"
     });
+    emptyValue = '—';
     aggregatorTemplates = {
       count: function(formatter) {
         if (formatter == null) {
@@ -739,7 +740,7 @@
             for (k in criteria) {
               if (!hasProp.call(criteria, k)) continue;
               v = criteria[k];
-              if (v !== ((ref = record[k]) != null ? ref : "null")) {
+              if (v !== ((ref = record[k]) != null ? ref : emptyValue)) {
                 return;
               }
             }
@@ -836,12 +837,12 @@
         ref = this.colAttrs;
         for (l = 0, len1 = ref.length; l < len1; l++) {
           x = ref[l];
-          colKey.push((ref1 = record[x]) != null ? ref1 : "null");
+          colKey.push((ref1 = record[x]) != null ? ref1 : emptyValue);
         }
         ref2 = this.rowAttrs;
         for (n = 0, len2 = ref2.length; n < len2; n++) {
           x = ref2[n];
-          rowKey.push((ref3 = record[x]) != null ? ref3 : "null");
+          rowKey.push((ref3 = record[x]) != null ? ref3 : emptyValue);
         }
         flatRowKey = rowKey.join(String.fromCharCode(0));
         flatColKey = colKey.join(String.fromCharCode(0));
@@ -1252,12 +1253,12 @@
             if (attrValues[attr] == null) {
               attrValues[attr] = {};
               if (recordsProcessed > 0) {
-                attrValues[attr]["null"] = recordsProcessed;
+                attrValues[attr][emptyValue] = recordsProcessed;
               }
             }
           }
           for (attr in attrValues) {
-            value = (ref = record[attr]) != null ? ref : "null";
+            value = (ref = record[attr]) != null ? ref : emptyValue;
             if ((base = attrValues[attr])[value] == null) {
               base[value] = 0;
             }
