@@ -20,7 +20,7 @@
     /*
     Utilities
      */
-    var PivotData, addSeparators, aggregatorTemplates, aggregators, dayNamesEn, derivers, emptyValue, getSort, locales, mthNamesEn, naturalSort, numberFormat, pivotTableRenderer, rd, renderers, rx, rz, sortAs, usFmt, usFmtInt, usFmtPct, zeroPad;
+    var PivotData, addSeparators, aggregatorTemplates, aggregators, dayNamesEn, derivers, getSort, locales, mthNamesEn, naturalSort, numberFormat, pivotTableRenderer, rd, renderers, rx, rz, sortAs, usFmt, usFmtInt, usFmtPct, zeroPad;
     addSeparators = function(nStr, thousandsSep, decimalSep) {
       var rgx, x, x1, x2;
       nStr += '';
@@ -62,7 +62,6 @@
       scaler: 100,
       suffix: "%"
     });
-    emptyValue = '—';
     aggregatorTemplates = {
       count: function(formatter) {
         if (formatter == null) {
@@ -630,7 +629,7 @@
      */
     PivotData = (function() {
       function PivotData(input, opts) {
-        var ref, ref1, ref2, ref3, ref4, ref5, ref6, ref7, ref8, ref9;
+        var ref, ref1, ref10, ref2, ref3, ref4, ref5, ref6, ref7, ref8, ref9;
         if (opts == null) {
           opts = {};
         }
@@ -652,6 +651,7 @@
         this.filter = (ref9 = opts.filter) != null ? ref9 : (function() {
           return true;
         });
+        this.emptyValue = (ref10 = opts.emptyValue) != null ? ref10 : 'null';
         this.tree = {};
         this.rowKeys = [];
         this.colKeys = [];
@@ -740,7 +740,7 @@
             for (k in criteria) {
               if (!hasProp.call(criteria, k)) continue;
               v = criteria[k];
-              if (v !== ((ref = record[k]) != null ? ref : emptyValue)) {
+              if (v !== ((ref = record[k]) != null ? ref : _this.emptyValue)) {
                 return;
               }
             }
@@ -837,12 +837,14 @@
         ref = this.colAttrs;
         for (l = 0, len1 = ref.length; l < len1; l++) {
           x = ref[l];
-          colKey.push((ref1 = record[x]) != null ? ref1 : emptyValue);
+          debugger;
+          colKey.push((ref1 = record[x]) != null ? ref1 : this.emptyValue);
         }
         ref2 = this.rowAttrs;
         for (n = 0, len2 = ref2.length; n < len2; n++) {
           x = ref2[n];
-          rowKey.push((ref3 = record[x]) != null ? ref3 : emptyValue);
+          debugger;
+          rowKey.push((ref3 = record[x]) != null ? ref3 : this.emptyValue);
         }
         flatRowKey = rowKey.join(String.fromCharCode(0));
         flatColKey = colKey.join(String.fromCharCode(0));
@@ -1253,12 +1255,12 @@
             if (attrValues[attr] == null) {
               attrValues[attr] = {};
               if (recordsProcessed > 0) {
-                attrValues[attr][emptyValue] = recordsProcessed;
+                attrValues[attr][this.emptyValue] = recordsProcessed;
               }
             }
           }
           for (attr in attrValues) {
-            value = (ref = record[attr]) != null ? ref : emptyValue;
+            value = (ref = record[attr]) != null ? ref : this.emptyValue;
             if ((base = attrValues[attr])[value] == null) {
               base[value] = 0;
             }
