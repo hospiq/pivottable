@@ -837,13 +837,11 @@
         ref = this.colAttrs;
         for (l = 0, len1 = ref.length; l < len1; l++) {
           x = ref[l];
-          debugger;
           colKey.push((ref1 = record[x]) != null ? ref1 : this.emptyValue);
         }
         ref2 = this.rowAttrs;
         for (n = 0, len2 = ref2.length; n < len2; n++) {
           x = ref2[n];
-          debugger;
           rowKey.push((ref3 = record[x]) != null ? ref3 : this.emptyValue);
         }
         flatRowKey = rowKey.join(String.fromCharCode(0));
