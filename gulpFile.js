@@ -1,5 +1,4 @@
 var gulp = require('gulp'),
-    git = require('gulp-git'),
     bump = require('gulp-bump'),
     filter = require('gulp-filter'),
     tag_version = require('gulp-tag-version'),
@@ -56,22 +55,6 @@ function inc(importance) {
 gulp.task('publish', function (done) {
   spawn('npm', ['publish'], { stdio: 'inherit' }).on('close', done);
 });
-
-gulp.task('push', function (done) {
-  git.push('origin', 'master', {args: '--tags'}, function (err) {
-    if (err) throw err;
-  });
-});
-
-
-gulp.task('tag', function() {
-    return gulp.src(['./package.json', './bower.json', './pivottable.jquery.json'])
-    .pipe(git.commit('version bump'))
-    // read only one file to get the version number
-    .pipe(filter('package.json'))
-    .pipe(tag_version());
-});
-
 
 gulp.task('bumpPatch', function() { return inc('patch'); })
 gulp.task('bumpMinor', function() { return inc('minor'); })
