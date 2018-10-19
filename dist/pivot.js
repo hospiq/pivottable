@@ -913,7 +913,7 @@
     Default Renderer for hierarchical table layout
      */
     pivotTableRenderer = function(pivotData, opts) {
-      var aggregator, c, colAttrs, colKey, colKeys, defaults, getClickHandler, i, j, l, len1, len2, len3, len4, len5, len6, n, o, r, result, rowAttrs, rowKey, rowKeys, spanSize, t, tbody, td, th, thead, totalAggregator, tr, txt, u, val, w, x;
+      var aggregator, colAttr, colAttrIdx, colAttrs, colKey, colKeyIdx, colKeys, defaults, getClickHandler, i, l, len1, len2, len3, len4, len5, len6, n, o, result, rowAttr, rowAttrIdx, rowAttrs, rowKey, rowKeyIdx, rowKeys, spanSize, t, tbody, td, th, thead, totalAggregator, tr, txt, u, val, w, x;
       defaults = {
         table: {
           clickCallback: null
@@ -951,12 +951,12 @@
       }
       result = document.createElement("table");
       result.className = "pvtTable";
-      spanSize = function(arr, i, j) {
-        var l, len, n, noDraw, ref, ref1, stop, x;
-        if (i !== 0) {
+      spanSize = function(keys, keyIdx, maxAttrIdx) {
+        var attrIdx, l, len, n, noDraw, ref, ref1, stop;
+        if (keyIdx !== 0) {
           noDraw = true;
-          for (x = l = 0, ref = j; 0 <= ref ? l <= ref : l >= ref; x = 0 <= ref ? ++l : --l) {
-            if (arr[i - 1][x] !== arr[i][x]) {
+          for (attrIdx = l = 0, ref = maxAttrIdx; 0 <= ref ? l <= ref : l >= ref; attrIdx = 0 <= ref ? ++l : --l) {
+            if (keys[keyIdx - 1][attrIdx] !== keys[keyIdx][attrIdx]) {
               noDraw = false;
             }
           }
@@ -965,10 +965,10 @@
           }
         }
         len = 0;
-        while (i + len < arr.length) {
+        while (keyIdx + len < keys.length) {
           stop = false;
-          for (x = n = 0, ref1 = j; 0 <= ref1 ? n <= ref1 : n >= ref1; x = 0 <= ref1 ? ++n : --n) {
-            if (arr[i][x] !== arr[i + len][x]) {
+          for (attrIdx = n = 0, ref1 = maxAttrIdx; 0 <= ref1 ? n <= ref1 : n >= ref1; attrIdx = 0 <= ref1 ? ++n : --n) {
+            if (keys[keyIdx][attrIdx] !== keys[keyIdx + len][attrIdx]) {
               stop = true;
             }
           }
@@ -980,10 +980,10 @@
         return len;
       };
       thead = document.createElement("thead");
-      for (j = l = 0, len1 = colAttrs.length; l < len1; j = ++l) {
-        c = colAttrs[j];
+      for (colAttrIdx = l = 0, len1 = colAttrs.length; l < len1; colAttrIdx = ++l) {
+        colAttr = colAttrs[colAttrIdx];
         tr = document.createElement("tr");
-        if (parseInt(j) === 0 && rowAttrs.length !== 0) {
+        if (parseInt(colAttrIdx) === 0 && rowAttrs.length !== 0) {
           th = document.createElement("th");
           th.setAttribute("colspan", rowAttrs.length);
           th.setAttribute("rowspan", colAttrs.length);
@@ -991,27 +991,27 @@
         }
         th = document.createElement("th");
         th.className = "pvtAxisLabel";
-        th.textContent = c;
+        th.textContent = colAttr;
         tr.appendChild(th);
-        for (i = n = 0, len2 = colKeys.length; n < len2; i = ++n) {
-          colKey = colKeys[i];
-          x = spanSize(colKeys, parseInt(i), parseInt(j));
+        for (colKeyIdx = n = 0, len2 = colKeys.length; n < len2; colKeyIdx = ++n) {
+          colKey = colKeys[colKeyIdx];
+          x = spanSize(colKeys, parseInt(colKeyIdx), parseInt(colAttrIdx));
           if (x !== -1) {
             th = document.createElement("th");
             th.className = "pvtColLabel";
             if (opts.formatHeader) {
-              th.textContent = opts.formatHeader(colKey[j], colAttrs[j]);
+              th.textContent = opts.formatHeader(colKey[colAttrIdx], colAttrs[colAttrIdx]);
             } else {
-              th.textContent = colKey[j];
+              th.textContent = colKey[colAttrIdx];
             }
             th.setAttribute("colspan", x);
-            if (parseInt(j) === colAttrs.length - 1 && rowAttrs.length !== 0) {
+            if (parseInt(colAttrIdx) === colAttrs.length - 1 && rowAttrs.length !== 0) {
               th.setAttribute("rowspan", 2);
             }
             tr.appendChild(th);
           }
         }
-        if (parseInt(j) === 0) {
+        if (parseInt(colAttrIdx) === 0) {
           th = document.createElement("th");
           th.className = "pvtTotalLabel pvtRowTotalLabel";
           th.innerHTML = opts.localeStrings.totals;
@@ -1023,10 +1023,10 @@
       if (rowAttrs.length !== 0) {
         tr = document.createElement("tr");
         for (i = o = 0, len3 = rowAttrs.length; o < len3; i = ++o) {
-          r = rowAttrs[i];
+          rowAttr = rowAttrs[i];
           th = document.createElement("th");
           th.className = "pvtAxisLabel";
-          th.textContent = r;
+          th.textContent = rowAttr;
           tr.appendChild(th);
         }
         th = document.createElement("th");
@@ -1039,34 +1039,34 @@
       }
       result.appendChild(thead);
       tbody = document.createElement("tbody");
-      for (i = t = 0, len4 = rowKeys.length; t < len4; i = ++t) {
-        rowKey = rowKeys[i];
+      for (rowKeyIdx = t = 0, len4 = rowKeys.length; t < len4; rowKeyIdx = ++t) {
+        rowKey = rowKeys[rowKeyIdx];
         tr = document.createElement("tr");
-        for (j in rowKey) {
-          if (!hasProp.call(rowKey, j)) continue;
-          txt = rowKey[j];
-          x = spanSize(rowKeys, parseInt(i), parseInt(j));
+        for (rowAttrIdx in rowKey) {
+          if (!hasProp.call(rowKey, rowAttrIdx)) continue;
+          txt = rowKey[rowAttrIdx];
+          x = spanSize(rowKeys, parseInt(rowKeyIdx), parseInt(rowAttrIdx));
           if (x !== -1) {
             th = document.createElement("th");
             th.className = "pvtRowLabel";
             if (opts.formatHeader) {
-              th.textContent = opts.formatHeader(txt, rowAttrs[j]);
+              th.textContent = opts.formatHeader(txt, rowAttrs[rowAttrIdx]);
             } else {
               th.textContent = txt;
             }
             th.setAttribute("rowspan", x);
-            if (parseInt(j) === rowAttrs.length - 1 && colAttrs.length !== 0) {
+            if (parseInt(rowAttrIdx) === rowAttrs.length - 1 && colAttrs.length !== 0) {
               th.setAttribute("colspan", 2);
             }
             tr.appendChild(th);
           }
         }
-        for (j = u = 0, len5 = colKeys.length; u < len5; j = ++u) {
-          colKey = colKeys[j];
+        for (colKeyIdx = u = 0, len5 = colKeys.length; u < len5; colKeyIdx = ++u) {
+          colKey = colKeys[colKeyIdx];
           aggregator = pivotData.getAggregator(rowKey, colKey);
           val = aggregator.value();
           td = document.createElement("td");
-          td.className = "pvtVal row" + i + " col" + j;
+          td.className = "pvtVal row" + rowKeyIdx + " col" + colKeyIdx;
           td.textContent = aggregator.format(val);
           td.setAttribute("data-value", val);
           if (getClickHandler != null) {
@@ -1083,7 +1083,7 @@
         if (getClickHandler != null) {
           td.onclick = getClickHandler(val, rowKey, []);
         }
-        td.setAttribute("data-for", "row" + i);
+        td.setAttribute("data-for", "row" + rowKeyIdx);
         tr.appendChild(td);
         tbody.appendChild(tr);
       }
@@ -1093,8 +1093,8 @@
       th.innerHTML = opts.localeStrings.totals;
       th.setAttribute("colspan", rowAttrs.length + (colAttrs.length === 0 ? 0 : 1));
       tr.appendChild(th);
-      for (j = w = 0, len6 = colKeys.length; w < len6; j = ++w) {
-        colKey = colKeys[j];
+      for (colKeyIdx = w = 0, len6 = colKeys.length; w < len6; colKeyIdx = ++w) {
+        colKey = colKeys[colKeyIdx];
         totalAggregator = pivotData.getAggregator([], colKey);
         val = totalAggregator.value();
         td = document.createElement("td");
@@ -1104,7 +1104,7 @@
         if (getClickHandler != null) {
           td.onclick = getClickHandler(val, [], colKey);
         }
-        td.setAttribute("data-for", "col" + j);
+        td.setAttribute("data-for", "col" + colKeyIdx);
         tr.appendChild(td);
       }
       totalAggregator = pivotData.getAggregator([], []);
