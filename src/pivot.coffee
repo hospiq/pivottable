@@ -313,6 +313,7 @@ callWithJQuery ($) ->
             @colOrder = opts.colOrder ? "key_a_to_z"
             @derivedAttributes = opts.derivedAttributes ? {}
             @filter = opts.filter ? (-> true)
+            @emptyValue = opts.emptyValue ? 'null'
             @tree = {}
             @rowKeys = []
             @colKeys = []
@@ -360,7 +361,7 @@ callWithJQuery ($) ->
             PivotData.forEachRecord @input, @opts, (record) =>
                 return if not @opts.filter(record)
                 for own k, v of criteria
-                    return if v != (record[k] ? "null")
+                    return if v != (record[k] ? @emptyValue)
                 callback(record)
 
         arrSort: (attrs) =>
@@ -395,8 +396,8 @@ callWithJQuery ($) ->
         processRecord: (record) -> #this code is called in a tight loop
             colKey = []
             rowKey = []
-            colKey.push record[x] ? "null" for x in @colAttrs
-            rowKey.push record[x] ? "null" for x in @rowAttrs
+            colKey.push record[x] ? @emptyValue for x in @colAttrs
+            rowKey.push record[x] ? @emptyValue for x in @rowAttrs
             flatRowKey = rowKey.join(String.fromCharCode(0))
             flatColKey = colKey.join(String.fromCharCode(0))
 
@@ -703,9 +704,9 @@ callWithJQuery ($) ->
                     if not attrValues[attr]?
                         attrValues[attr] = {}
                         if recordsProcessed > 0
-                            attrValues[attr]["null"] = recordsProcessed
+                            attrValues[attr][@emptyValue] = recordsProcessed
                 for attr of attrValues
-                    value = record[attr] ? "null"
+                    value = record[attr] ? @emptyValue
                     attrValues[attr][value] ?= 0
                     attrValues[attr][value]++
                 recordsProcessed++
