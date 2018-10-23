@@ -629,7 +629,7 @@
      */
     PivotData = (function() {
       function PivotData(input, opts) {
-        var ref, ref1, ref10, ref2, ref3, ref4, ref5, ref6, ref7, ref8, ref9;
+        var ref, ref1, ref10, ref11, ref12, ref13, ref2, ref3, ref4, ref5, ref6, ref7, ref8, ref9;
         if (opts == null) {
           opts = {};
         }
@@ -641,29 +641,40 @@
         this.input = input;
         this.aggregator = (ref = opts.aggregator) != null ? ref : aggregatorTemplates.count()();
         this.aggregatorName = (ref1 = opts.aggregatorName) != null ? ref1 : "Count";
-        this.colAttrs = (ref2 = opts.cols) != null ? ref2 : [];
-        this.rowAttrs = (ref3 = opts.rows) != null ? ref3 : [];
-        this.valAttrs = (ref4 = opts.vals) != null ? ref4 : [];
-        this.sorters = (ref5 = opts.sorters) != null ? ref5 : {};
-        this.rowOrder = (ref6 = opts.rowOrder) != null ? ref6 : "key_a_to_z";
-        this.colOrder = (ref7 = opts.colOrder) != null ? ref7 : "key_a_to_z";
-        this.derivedAttributes = (ref8 = opts.derivedAttributes) != null ? ref8 : {};
-        this.filter = (ref9 = opts.filter) != null ? ref9 : (function() {
+        this.isMultiAgg = (ref2 = opts.isMultiAgg) != null ? ref2 : false;
+        this.multiAggAttr = (ref3 = opts.multiAggAttr) != null ? ref3 : "aggIdx";
+        this.aggregators = (ref4 = opts.aggregators) != null ? ref4 : [this.aggregator, this.aggregator];
+        this.colAttrs = (ref5 = opts.cols) != null ? ref5 : [];
+        this.rowAttrs = (ref6 = opts.rows) != null ? ref6 : [];
+        this.valAttrs = (ref7 = opts.vals) != null ? ref7 : [];
+        this.sorters = (ref8 = opts.sorters) != null ? ref8 : {};
+        this.rowOrder = (ref9 = opts.rowOrder) != null ? ref9 : "key_a_to_z";
+        this.colOrder = (ref10 = opts.colOrder) != null ? ref10 : "key_a_to_z";
+        this.derivedAttributes = (ref11 = opts.derivedAttributes) != null ? ref11 : {};
+        this.filter = (ref12 = opts.filter) != null ? ref12 : (function() {
           return true;
         });
-        this.emptyValue = (ref10 = opts.emptyValue) != null ? ref10 : 'null';
-        this.tree = {};
+        this.emptyValue = (ref13 = opts.emptyValue) != null ? ref13 : 'null';
         this.rowKeys = [];
         this.colKeys = [];
+        this.tree = {};
         this.rowTotals = {};
         this.colTotals = {};
-        this.allTotal = this.aggregator(this, [], []);
+        if (this.isMultiAgg) {
+          this.allTotal = this.aggregators.map((function(_this) {
+            return function(agg) {
+              return agg(_this, [], []);
+            };
+          })(this));
+        } else {
+          this.allTotal = this.aggregator(this, [], []);
+        }
         this.sorted = false;
         this.opts = opts;
         PivotData.forEachRecord(input, opts, (function(_this) {
           return function(record) {
             if (opts.filter(record)) {
-              return _this.processRecord(record);
+              return _this.processRecord2(record);
             }
           };
         })(this));
@@ -830,7 +841,23 @@
         return this.rowKeys;
       };
 
-      PivotData.prototype.processRecord = function(record) {
+      PivotData.prototype.processRecord2 = function(record) {
+        var agg, idx, l, len1, ref, results;
+        if (this.isMultiAgg) {
+          ref = this.aggregators;
+          results = [];
+          for (idx = l = 0, len1 = ref.length; l < len1; idx = ++l) {
+            agg = ref[idx];
+            record[this.multiAggAttr] = idx;
+            results.push(this.processRecord(record, agg));
+          }
+          return results;
+        } else {
+          return this.processRecord(record, this.aggregator);
+        }
+      };
+
+      PivotData.prototype.processRecord = function(record, aggregator) {
         var colKey, flatColKey, flatRowKey, l, len1, len2, n, ref, ref1, ref2, ref3, rowKey, x;
         colKey = [];
         rowKey = [];
@@ -846,18 +873,26 @@
         }
         flatRowKey = rowKey.join(String.fromCharCode(0));
         flatColKey = colKey.join(String.fromCharCode(0));
-        this.allTotal.push(record);
+        if (this.isMultiAgg) {
+          this.allTotal.forEach((function(_this) {
+            return function(agg) {
+              return agg.push(record);
+            };
+          })(this));
+        } else {
+          this.allTotal.push(record);
+        }
         if (rowKey.length !== 0) {
           if (!this.rowTotals[flatRowKey]) {
             this.rowKeys.push(rowKey);
-            this.rowTotals[flatRowKey] = this.aggregator(this, rowKey, []);
+            this.rowTotals[flatRowKey] = aggregator(this, rowKey, []);
           }
           this.rowTotals[flatRowKey].push(record);
         }
         if (colKey.length !== 0) {
           if (!this.colTotals[flatColKey]) {
             this.colKeys.push(colKey);
-            this.colTotals[flatColKey] = this.aggregator(this, [], colKey);
+            this.colTotals[flatColKey] = aggregator(this, [], colKey);
           }
           this.colTotals[flatColKey].push(record);
         }
@@ -866,7 +901,7 @@
             this.tree[flatRowKey] = {};
           }
           if (!this.tree[flatRowKey][flatColKey]) {
-            this.tree[flatRowKey][flatColKey] = this.aggregator(this, rowKey, colKey);
+            this.tree[flatRowKey][flatColKey] = aggregator(this, rowKey, colKey);
           }
           return this.tree[flatRowKey][flatColKey].push(record);
         }
@@ -878,6 +913,9 @@
         flatColKey = colKey.join(String.fromCharCode(0));
         if (rowKey.length === 0 && colKey.length === 0) {
           agg = this.allTotal;
+          if (this.isMultiAgg) {
+            return agg;
+          }
         } else if (rowKey.length === 0) {
           agg = this.colTotals[flatColKey];
         } else if (colKey.length === 0) {
@@ -993,6 +1031,9 @@
         th = document.createElement("th");
         th.className = "pvtAxisLabel";
         th.textContent = colAttr;
+        if (this.isMultiAgg && colAttr === this.multiAggAttr) {
+          th.textContent = 'Multi-agg';
+        }
         tr.appendChild(th);
         for (colKeyIdx = n = 0, len2 = colKeys.length; n < len2; colKeyIdx = ++n) {
           colKey = colKeys[colKeyIdx];
@@ -1109,6 +1150,9 @@
         tr.appendChild(td);
       }
       totalAggregator = pivotData.getAggregator([], []);
+      if (opts.isMultiAgg) {
+        totalAggregator = totalAggregator[0];
+      }
       val = totalAggregator.value();
       td = document.createElement("td");
       td.className = "pvtGrandTotal";

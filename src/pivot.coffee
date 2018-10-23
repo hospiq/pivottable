@@ -302,30 +302,45 @@ callWithJQuery ($) ->
 
     class PivotData
         constructor: (input, opts = {}) ->
-            @input = input
+            @input = input  #TODO: not used ....
+
             @aggregator = opts.aggregator ? aggregatorTemplates.count()()
             @aggregatorName = opts.aggregatorName ? "Count"
+
+            #multi-agg support
+            @isMultiAgg = opts.isMultiAgg ? false
+            @multiAggAttr = opts.multiAggAttr ? "aggIdx"  #fake attr inserted as last col, points to an aggregator
+            @aggregators = opts.aggregators ? [@aggregator, @aggregator]
+
+            #attributes are the record fields selected by the user.
             @colAttrs = opts.cols ? []
             @rowAttrs = opts.rows ? []
-            @valAttrs = opts.vals ? []
+            @valAttrs = opts.vals ? []  #for aggregators which require a field (e.g., avg): TODO not used!!
+
             @sorters = opts.sorters ? {}
             @rowOrder = opts.rowOrder ? "key_a_to_z"
             @colOrder = opts.colOrder ? "key_a_to_z"
             @derivedAttributes = opts.derivedAttributes ? {}
             @filter = opts.filter ? (-> true)
             @emptyValue = opts.emptyValue ? 'null'
-            @tree = {}
             @rowKeys = []
             @colKeys = []
-            @rowTotals = {}
-            @colTotals = {}
-            @allTotal = @aggregator(this, [], [])
+
+            #aggregator instances: there is one agg per cell
+            @tree = {}  #tree[rowKey][colKey] === agg
+            @rowTotals = {}  #indexed by rowKey
+            @colTotals = {}  #indexed by colKey
+            if @isMultiAgg
+                @allTotal = @aggregators.map((agg) => agg(this, [], []))
+            else
+                @allTotal = @aggregator(this, [], [])
+
             @sorted = false
             @opts = opts
 
             # iterate through input, accumulating data for cells
             PivotData.forEachRecord input, opts, (record) =>
-                @processRecord(record) if opts.filter(record)
+                @processRecord2(record) if opts.filter(record)
 
         #can handle arrays or jQuery selections of tables
         @forEachRecord = (input, opts, f) ->
@@ -376,6 +391,7 @@ callWithJQuery ($) ->
             if not @sorted
                 @sorted = true
                 v = (r,c) => @getAggregator(r,c).value()
+                #TODO: new sort orders, which take a key, and use v() with that col or row key
                 switch @rowOrder
                     when "value_a_to_z"  then @rowKeys.sort (a,b) =>  naturalSort v(a,[]), v(b,[])
                     when "value_z_to_a" then @rowKeys.sort (a,b) => -naturalSort v(a,[]), v(b,[])
@@ -393,7 +409,15 @@ callWithJQuery ($) ->
             @sortKeys()
             return @rowKeys
 
-        processRecord: (record) -> #this code is called in a tight loop
+        processRecord2: (record) ->
+            if @isMultiAgg
+                for agg, idx in @aggregators
+                    record[@multiAggAttr] = idx
+                    @processRecord(record, agg)
+            else
+                @processRecord(record, @aggregator)
+
+        processRecord: (record, aggregator) -> #this code is called in a tight loop
             colKey = []
             rowKey = []
             colKey.push record[x] ? @emptyValue for x in @colAttrs
@@ -401,25 +425,28 @@ callWithJQuery ($) ->
             flatRowKey = rowKey.join(String.fromCharCode(0))
             flatColKey = colKey.join(String.fromCharCode(0))
 
-            @allTotal.push record
+            if @isMultiAgg
+                @allTotal.forEach((agg) => agg.push record)
+            else
+                @allTotal.push record
 
             if rowKey.length != 0
                 if not @rowTotals[flatRowKey]
                     @rowKeys.push rowKey
-                    @rowTotals[flatRowKey] = @aggregator(this, rowKey, [])
+                    @rowTotals[flatRowKey] = aggregator(this, rowKey, [])
                 @rowTotals[flatRowKey].push record
 
             if colKey.length != 0
                 if not @colTotals[flatColKey]
                     @colKeys.push colKey
-                    @colTotals[flatColKey] = @aggregator(this, [], colKey)
+                    @colTotals[flatColKey] = aggregator(this, [], colKey)
                 @colTotals[flatColKey].push record
 
             if colKey.length != 0 and rowKey.length != 0
                 if not @tree[flatRowKey]
                     @tree[flatRowKey] = {}
                 if not @tree[flatRowKey][flatColKey]
-                    @tree[flatRowKey][flatColKey] = @aggregator(this, rowKey, colKey)
+                    @tree[flatRowKey][flatColKey] = aggregator(this, rowKey, colKey)
                 @tree[flatRowKey][flatColKey].push record
 
         getAggregator: (rowKey, colKey) =>
@@ -427,6 +454,8 @@ callWithJQuery ($) ->
             flatColKey = colKey.join(String.fromCharCode(0))
             if rowKey.length == 0 and colKey.length == 0
                 agg = @allTotal
+                if @isMultiAgg
+                    return agg  #must return an array here
             else if rowKey.length == 0
                 agg = @colTotals[flatColKey]
             else if colKey.length == 0
@@ -503,6 +532,8 @@ callWithJQuery ($) ->
             th = document.createElement("th")
             th.className = "pvtAxisLabel"
             th.textContent = colAttr
+            if @isMultiAgg and colAttr == @multiAggAttr
+                th.textContent = 'Multi-agg'  #TODO: will be duplicated in PivotChart: un-dupe code
             tr.appendChild th
 
             # create cell for each col key (of this attribute)
@@ -622,6 +653,8 @@ callWithJQuery ($) ->
             tr.appendChild td
         #right-most grand total cell
         totalAggregator = pivotData.getAggregator([], [])
+        if opts.isMultiAgg
+            totalAggregator = totalAggregator[0]  #TODO: actually build out extra cols
         val = totalAggregator.value()
         td = document.createElement("td")
         td.className = "pvtGrandTotal"
