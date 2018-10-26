@@ -302,10 +302,15 @@ callWithJQuery ($) ->
 
     class PivotData
         #If there are multiple aggregators, a fake attribute is used to generate the extra cols/rows.
+        #TODO: if these are class constants, the renderer cant read it =/
         MULTI_AGG_ATTR = "_metrics"
         MULTI_AGG_ATTR_DISPLAY = "Metrics"
 
         constructor: (input, opts = {}) ->
+            #TODO: not sure why i need these here so that the renderers can use them...
+            @MULTI_AGG_ATTR = MULTI_AGG_ATTR
+            @MULTI_AGG_ATTR_DISPLAY = MULTI_AGG_ATTR_DISPLAY
+
             @input = input
 
             #May be an array of aggregators.
@@ -432,7 +437,7 @@ callWithJQuery ($) ->
             @sortKeys()
             return @rowKeys
 
-        #TODO: document + cleanup (aggIdx indicates multi-metric mode)
+        #TODO: document + cleanup
         processRecord: (record, aggIdx) -> #this code is called in a tight loop
 
             #In multi-metric mode, process record once per aggregator.
@@ -456,37 +461,38 @@ callWithJQuery ($) ->
             allTotal = if aggIdx? then @allTotal[aggIdx] else @allTotal
             allTotal.push record
 
+            #TODO: consolidate, please....
+            isMultiRowTotals = aggIdx? and MULTI_AGG_ATTR in @colAttrs
             if rowKey.length != 0
                 #First time we've seen key: add it to keys array, and instantiate totals aggregator.
                 if not @rowTotals[flatRowKey]
                     @rowKeys.push rowKey
-                    #In multi-metric mode, if metrics attr is one of the columns, there are multiple row totals.
-                    if aggIdx? and MULTI_AGG_ATTR in @colAttrs
+                    if isMultiRowTotals
                         @rowTotals[flatRowKey] = []
                     else
                         @rowTotals[flatRowKey] = aggregator(this, rowKey, [])
-                if aggIdx? and not @rowTotals[flatRowKey][aggIdx]
+                if isMultiRowTotals and not @rowTotals[flatRowKey][aggIdx]
                   @rowTotals[flatRowKey][aggIdx] = aggregator(this, rowKey, [])
                 #Push the record to the aggregator.
                 rowTotalAgg = @rowTotals[flatRowKey]
-                if aggIdx?
+                if isMultiRowTotals
                     rowTotalAgg = rowTotalAgg[aggIdx]
                 rowTotalAgg.push record
 
+            isMultiColTotals = aggIdx? and MULTI_AGG_ATTR in @rowAttrs
             if colKey.length != 0
                 #First time we've seen key: add it to keys array, and instantiate totals aggregator.
                 if not @colTotals[flatColKey]
                     @colKeys.push colKey
-                    #In multi-metric mode, if metrics attr is one of the rows, there are multiple col totals.
-                    if aggIdx? and MULTI_AGG_ATTR in @rowAttrs
+                    if isMultiColTotals
                         @colTotals[flatColKey] = []
                     else
                         @colTotals[flatColKey] = aggregator(this, [], colKey)
-                if aggIdx? and not @colTotals[flatColKey][aggIdx]
+                if isMultiColTotals and not @colTotals[flatColKey][aggIdx]
                     @colTotals[flatColKey][aggIdx] = aggregator(this, [], colKey)
                 #Push record to the aggregator.
                 colTotalAgg = @colTotals[flatColKey]
-                if aggIdx?
+                if isMultiColTotals
                     colTotalAgg = colTotalAgg[aggIdx]
                 colTotalAgg.push record
 
@@ -604,19 +610,19 @@ callWithJQuery ($) ->
 
             # create row totals column header
             if parseInt(colAttrIdx) == 0
-                createHeader = (aggName) ->
+                createHeader = (aggIdx) ->
                     th = document.createElement("th")
                     th.className = "pvtTotalLabel pvtRowTotalLabel"
                     th.innerHTML = opts.localeStrings.totals
-                    if aggName?
-                        th.innerHTML += " (#{aggName})"
+                    if aggIdx?
+                        th.innerHTML += " (#{aggIdx})"
                     th.setAttribute("rowspan", colAttrs.length + (if rowAttrs.length ==0 then 0 else 1))
                     tr.appendChild th
 
                 #In multi-metric mode, if "Metrics" attr is a col, there is one row totals col per aggregator.
                 if $.isArray(pivotData.aggregator) and pivotData.MULTI_AGG_ATTR in colAttrs
-                    for agg in pivotData.aggregator
-                        createHeader(agg)
+                    for agg, aggIdx in pivotData.aggregator
+                        createHeader(aggIdx)
                 else
                     createHeader()
 
@@ -698,22 +704,21 @@ callWithJQuery ($) ->
             tbody.appendChild tr
 
         #finally, the row for col totals (which includes a grand total cell in the bottom-right)
-        createTotalsRow = (aggIdx, aggName) ->
+        createTotalsRow = (aggIdx) ->
             tr = document.createElement("tr")
 
             #left-most header cell
             th = document.createElement("th")
             th.className = "pvtTotalLabel pvtColTotalLabel"
             th.innerHTML = opts.localeStrings.totals
-            if aggName?
-                th.innerHTML += " (#{aggName})"
+            if aggIdx?
+                th.innerHTML += " (#{aggIdx})"
             th.setAttribute("colspan", rowAttrs.length + (if colAttrs.length == 0 then 0 else 1))
             tr.appendChild th
 
             #value cells, one per col key
             for colKey, colKeyIdx in colKeys
                 totalAggregator = pivotData.getAggregator([], colKey)
-                #Multi-metric mode: select the correct aggregator.
                 if aggIdx?
                     totalAggregator = totalAggregator[aggIdx]
                 val = totalAggregator.value()
@@ -755,7 +760,7 @@ callWithJQuery ($) ->
         #col totals row per aggregator.
         if $.isArray(pivotData.aggregator) and pivotData.MULTI_AGG_ATTR in rowAttrs
             for agg, aggIdx in pivotData.aggregator
-                createTotalsRow(aggIdx, agg)
+                createTotalsRow(aggIdx)
         else
             createTotalsRow()
 
