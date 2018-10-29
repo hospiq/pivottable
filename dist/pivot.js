@@ -652,7 +652,7 @@
         this.colAttrs = (ref2 = opts.cols) != null ? ref2 : [];
         this.rowAttrs = (ref3 = opts.rows) != null ? ref3 : [];
         this.valAttrs = (ref4 = opts.vals) != null ? ref4 : [];
-        if (indexOf.call(this.colAttrs, MULTI_AGG_ATTR) < 0 && indexOf.call(this.rowAttrs, MULTI_AGG_ATTR) < 0) {
+        if ($.isArray(this.aggregator) && indexOf.call(this.colAttrs, MULTI_AGG_ATTR) < 0 && indexOf.call(this.rowAttrs, MULTI_AGG_ATTR) < 0) {
           this.colAttrs.push(MULTI_AGG_ATTR);
         }
         this.sorters = (ref5 = opts.sorters) != null ? ref5 : {};

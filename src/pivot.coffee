@@ -325,7 +325,7 @@ callWithJQuery ($) ->
             @valAttrs = opts.vals ? []  #Only used by plotly, gchart, and c3 renderers.
 
             #Insert the multi-agg attribute as the last column if not provided already.
-            if MULTI_AGG_ATTR not in @colAttrs and MULTI_AGG_ATTR not in @rowAttrs
+            if $.isArray(@aggregator) and MULTI_AGG_ATTR not in @colAttrs and MULTI_AGG_ATTR not in @rowAttrs
                 @colAttrs.push MULTI_AGG_ATTR
 
             #Only used when sorting keys by attribute value. E.g.: sorters[attr]=sortFn
