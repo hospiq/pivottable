@@ -413,21 +413,36 @@ callWithJQuery ($) ->
                     return comparison if comparison != 0
                 return 0
 
-        #TODO: describe possible row/colOrder values
+        #TODO: describe possible row/colOrder values & cleanup
         sortKeys: () =>
             if not @sorted
                 @sorted = true
-                v = (r,c) => @getAggregator(r,c).value()
 
-                #TODO: consolidate duplicate code
-                switch @rowOrder
-                    when "value_a_to_z"  then @rowKeys.sort (a,b) =>  naturalSort v(a,[]), v(b,[])
-                    when "value_z_to_a" then @rowKeys.sort (a,b) => -naturalSort v(a,[]), v(b,[])
-                    else             @rowKeys.sort @arrSort(@rowAttrs)
-                switch @colOrder
-                    when "value_a_to_z"  then @colKeys.sort (a,b) =>  naturalSort v([],a), v([],b)
-                    when "value_z_to_a" then @colKeys.sort (a,b) => -naturalSort v([],a), v([],b)
-                    else             @colKeys.sort @arrSort(@colAttrs)
+                for [sortOrder, keys, attrs], idx in [
+                  [@rowOrder, @rowKeys, @rowAttrs],
+                  [@colOrder, @colKeys, @colAttrs]
+                ]
+                    v = (k, foo) =>
+                        r = if idx == 0 then k else foo
+                        c = if idx == 1 then k else foo
+                        @getAggregator(r,c).value()
+
+                    if sortOrder.startsWith("key") and sortOrder != "key_a_to_z"
+                        key = sortOrder.split('_')[1]
+                        if key.startsWith("-")
+                            key = key.slice(1).split(String.fromCharCode(0))
+                            keys.sort (a,b) => naturalSort v(a, key), v(b, key)
+                        else
+                            key = key.split(String.fromCharCode(0))
+                            keys.sort (a,b) => -naturalSort v(a, key), v(b, key)
+
+                    # TODO: totals (handle agg idx); attr (re-use arrSort())
+                    else
+                        switch sortOrder
+                            when "value_a_to_z" then keys.sort (a,b) => naturalSort v(a, []), v(b, [])
+                            when "value_z_to_a" then keys.sort (a,b) => -naturalSort v(a, []), v(b, [])
+                            else keys.sort @arrSort(attrs)
+
 
         getColKeys: () =>
             @sortKeys()
