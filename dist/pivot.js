@@ -1075,7 +1075,7 @@
             }
             th.setAttribute("colspan", x);
             if ((getHeaderClickHandler != null) && colAttrIdx === (colAttrs.length - 1)) {
-              th.onclick = getHeaderClickHandler("col", "key", colKey);
+              th.onclick = getHeaderClickHandler("col", "key", colKey.join(String.fromCharCode(0)));
             }
             if (parseInt(colAttrIdx) === colAttrs.length - 1 && rowAttrs.length !== 0) {
               th.setAttribute("rowspan", 2);
@@ -1151,7 +1151,7 @@
               th.setAttribute("colspan", 2);
             }
             if ((getHeaderClickHandler != null) && parseInt(rowAttrIdx) === rowAttrs.length - 1) {
-              th.onclick = getHeaderClickHandler("row", "key", rowKey);
+              th.onclick = getHeaderClickHandler("row", "key", rowKey.join(String.fromCharCode(0)));
             }
             tr.appendChild(th);
           }

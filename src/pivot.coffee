@@ -608,7 +608,7 @@ callWithJQuery ($) ->
                         th.textContent = colKey[colAttrIdx]
                     th.setAttribute("colspan", x)
                     if getHeaderClickHandler? and colAttrIdx == (colAttrs.length - 1)
-                        th.onclick = getHeaderClickHandler("col", "key", colKey)
+                        th.onclick = getHeaderClickHandler("col", "key", colKey.join(String.fromCharCode(0)))
 
                     #if this is the last col attr, each col key spans 2 rows (the 2nd being the row attr row)
                     if parseInt(colAttrIdx) == colAttrs.length-1 and rowAttrs.length != 0
@@ -682,7 +682,7 @@ callWithJQuery ($) ->
 
                     #TODO: just realized we should rename this to a sort handler, cuz that's why we only do it for the finest-grained attr
                     if getHeaderClickHandler? and parseInt(rowAttrIdx) == rowAttrs.length-1
-                        th.onclick = getHeaderClickHandler("row", "key", rowKey)
+                        th.onclick = getHeaderClickHandler("row", "key", rowKey.join(String.fromCharCode(0)))
 
                     tr.appendChild th
 
