@@ -969,7 +969,7 @@
     Default Renderer for hierarchical table layout
      */
     pivotTableRenderer = function(pivotData, opts) {
-      var agg, aggIdx, aggregator, colAttr, colAttrIdx, colAttrs, colKey, colKeyIdx, colKeys, createHeader, createTotalsCell, createTotalsRow, defaults, getClickHandler, i, l, len1, len2, len3, len4, len5, len6, len7, len8, n, o, ref, ref1, ref2, ref3, result, rowAttr, rowAttrIdx, rowAttrs, rowKey, rowKeyIdx, rowKeys, spanSize, t, tbody, td, th, thead, totalAggregator, tr, txt, u, val, w, x, y, z;
+      var agg, aggIdx, aggregator, colAttr, colAttrIdx, colAttrs, colKey, colKeyIdx, colKeys, createHeader, createTotalsCell, createTotalsRow, defaults, getClickHandler, getHeaderClickHandler, i, l, len1, len2, len3, len4, len5, len6, len7, len8, n, o, ref, ref1, ref2, ref3, result, rowAttr, rowAttrIdx, rowAttrs, rowKey, rowKeyIdx, rowKeys, spanSize, t, tbody, td, th, thead, totalAggregator, tr, txt, u, val, w, x, y, z;
       defaults = {
         table: {
           clickCallback: null
@@ -1002,6 +1002,13 @@
           }
           return function(e) {
             return opts.table.clickCallback(e, value, filters, pivotData);
+          };
+        };
+      }
+      if (opts.table.headerClickCallback) {
+        getHeaderClickHandler = function(rowOrCol, type, val) {
+          return function(e) {
+            return opts.table.headerClickCallback(e, rowOrCol, type, val);
           };
         };
       }
@@ -1051,6 +1058,9 @@
         if ($.isArray(pivotData.aggregator) && colAttr === pivotData.MULTI_AGG_ATTR) {
           th.textContent = pivotData.MULTI_AGG_ATTR_DISPLAY;
         }
+        if (getHeaderClickHandler != null) {
+          th.onclick = getHeaderClickHandler("col", "attr", colAttr);
+        }
         tr.appendChild(th);
         for (colKeyIdx = n = 0, len2 = colKeys.length; n < len2; colKeyIdx = ++n) {
           colKey = colKeys[colKeyIdx];
@@ -1064,6 +1074,9 @@
               th.textContent = colKey[colAttrIdx];
             }
             th.setAttribute("colspan", x);
+            if ((getHeaderClickHandler != null) && colAttrIdx === (colAttrs.length - 1)) {
+              th.onclick = getHeaderClickHandler("col", "key", colKey);
+            }
             if (parseInt(colAttrIdx) === colAttrs.length - 1 && rowAttrs.length !== 0) {
               th.setAttribute("rowspan", 2);
             }
@@ -1079,6 +1092,9 @@
               th.innerHTML += " (" + aggIdx + ")";
             }
             th.setAttribute("rowspan", colAttrs.length + (rowAttrs.length === 0 ? 0 : 1));
+            if (getHeaderClickHandler != null) {
+              th.onclick = getHeaderClickHandler("col", "totals", aggIdx || 0);
+            }
             return tr.appendChild(th);
           };
           if ($.isArray(pivotData.aggregator) && (ref = pivotData.MULTI_AGG_ATTR, indexOf.call(colAttrs, ref) >= 0)) {
@@ -1100,6 +1116,9 @@
           th = document.createElement("th");
           th.className = "pvtAxisLabel";
           th.textContent = rowAttr;
+          if (getHeaderClickHandler != null) {
+            th.onclick = getHeaderClickHandler("row", "attr", rowAttr);
+          }
           tr.appendChild(th);
         }
         th = document.createElement("th");
@@ -1130,6 +1149,9 @@
             th.setAttribute("rowspan", x);
             if (parseInt(rowAttrIdx) === rowAttrs.length - 1 && colAttrs.length !== 0) {
               th.setAttribute("colspan", 2);
+            }
+            if ((getHeaderClickHandler != null) && parseInt(rowAttrIdx) === rowAttrs.length - 1) {
+              th.onclick = getHeaderClickHandler("row", "key", rowKey);
             }
             tr.appendChild(th);
           }
@@ -1180,6 +1202,9 @@
           th.innerHTML += " (" + aggIdx + ")";
         }
         th.setAttribute("colspan", rowAttrs.length + (colAttrs.length === 0 ? 0 : 1));
+        if (getHeaderClickHandler != null) {
+          th.onclick = getHeaderClickHandler("row", "totals", aggIdx || 0);
+        }
         tr.appendChild(th);
         for (colKeyIdx = z = 0, len8 = colKeys.length; z < len8; colKeyIdx = ++z) {
           colKey = colKeys[colKeyIdx];

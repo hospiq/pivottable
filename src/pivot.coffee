@@ -546,6 +546,10 @@ callWithJQuery ($) ->
                 filters[attr] = rowKey[i] for attr, i in rowAttrs when rowKey[i]?
                 return (e) -> opts.table.clickCallback(e, value, filters, pivotData)
 
+        if opts.table.headerClickCallback
+            getHeaderClickHandler = (rowOrCol, type, val) ->
+                return (e) -> opts.table.headerClickCallback(e, rowOrCol, type, val)
+
         #now actually build the output
         result = document.createElement("table")
         result.className = "pvtTable"
@@ -588,6 +592,8 @@ callWithJQuery ($) ->
             th.textContent = colAttr
             if $.isArray(pivotData.aggregator) and colAttr == pivotData.MULTI_AGG_ATTR
                 th.textContent = pivotData.MULTI_AGG_ATTR_DISPLAY  #TODO: hmm, so, we prolly don't need to post-process this in our code
+            if getHeaderClickHandler?
+                th.onclick = getHeaderClickHandler("col", "attr", colAttr)
             tr.appendChild th
 
             # create cell for each col key (of this attribute)
@@ -601,6 +607,8 @@ callWithJQuery ($) ->
                     else
                         th.textContent = colKey[colAttrIdx]
                     th.setAttribute("colspan", x)
+                    if getHeaderClickHandler? and colAttrIdx == (colAttrs.length - 1)
+                        th.onclick = getHeaderClickHandler("col", "key", colKey)
 
                     #if this is the last col attr, each col key spans 2 rows (the 2nd being the row attr row)
                     if parseInt(colAttrIdx) == colAttrs.length-1 and rowAttrs.length != 0
@@ -617,6 +625,8 @@ callWithJQuery ($) ->
                     if aggIdx?
                         th.innerHTML += " (#{aggIdx})"
                     th.setAttribute("rowspan", colAttrs.length + (if rowAttrs.length ==0 then 0 else 1))
+                    if getHeaderClickHandler?
+                        th.onclick = getHeaderClickHandler("col", "totals", aggIdx or 0)
                     tr.appendChild th
 
                 #In multi-metric mode, if "Metrics" attr is a col, there is one row totals col per aggregator.
@@ -635,11 +645,13 @@ callWithJQuery ($) ->
                 th = document.createElement("th")
                 th.className = "pvtAxisLabel"
                 th.textContent = rowAttr
+                if getHeaderClickHandler?
+                    th.onclick = getHeaderClickHandler("row", "attr", rowAttr)
                 tr.appendChild th
             th = document.createElement("th")  #empty cell below col attr cells
             if colAttrs.length ==0
                 #use empty cell for the row totals if there are no col attrs
-                #TODO: multi-metric support? prolly none, since "Metrics" is a row
+                #TODO: multi-metric support? prolly none, since "Metrics" is a row. also: sort!
                 th.className = "pvtTotalLabel pvtRowTotalLabel"
                 th.innerHTML = opts.localeStrings.totals
             tr.appendChild th
@@ -667,6 +679,10 @@ callWithJQuery ($) ->
                     #if this is the last row attr, the header cell spans 2 cols (the 2nd being the col attr col)
                     if parseInt(rowAttrIdx) == rowAttrs.length-1 and colAttrs.length !=0
                         th.setAttribute("colspan",2)
+
+                    #TODO: just realized we should rename this to a sort handler, cuz that's why we only do it for the finest-grained attr
+                    if getHeaderClickHandler? and parseInt(rowAttrIdx) == rowAttrs.length-1
+                        th.onclick = getHeaderClickHandler("row", "key", rowKey)
 
                     tr.appendChild th
 
@@ -714,6 +730,8 @@ callWithJQuery ($) ->
             if aggIdx?
                 th.innerHTML += " (#{aggIdx})"
             th.setAttribute("colspan", rowAttrs.length + (if colAttrs.length == 0 then 0 else 1))
+            if getHeaderClickHandler?
+                th.onclick = getHeaderClickHandler("row", "totals", aggIdx or 0)
             tr.appendChild th
 
             #value cells, one per col key
