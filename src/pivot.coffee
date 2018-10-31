@@ -422,25 +422,40 @@ callWithJQuery ($) ->
                   [@rowOrder, @rowKeys, @rowAttrs],
                   [@colOrder, @colKeys, @colAttrs]
                 ]
-                    v = (k, foo) =>
+                    v = (k, foo, aggIdx) =>
                         r = if idx == 0 then k else foo
                         c = if idx == 1 then k else foo
-                        @getAggregator(r,c).value()
+                        agg = @getAggregator(r,c)
+                        if $.isArray(agg)
+                            agg = agg[aggIdx]
+                        return agg.value()
+
+                    dothethingjulie = (foo, order, aggIdx) =>
+                        keys.sort (a,b) => naturalSort(v(a, foo, aggIdx), v(b, foo, aggIdx)) * order
 
                     if sortOrder.startsWith("key") and sortOrder != "key_a_to_z"
                         key = sortOrder.split('_')[1]
+                        order = 1
                         if key.startsWith("-")
-                            key = key.slice(1).split(String.fromCharCode(0))
-                            keys.sort (a,b) => naturalSort v(a, key), v(b, key)
-                        else
-                            key = key.split(String.fromCharCode(0))
-                            keys.sort (a,b) => -naturalSort v(a, key), v(b, key)
+                            key = key.slice(1)
+                            order = -1
+                        key = key.split(String.fromCharCode(0))
+                        dothethingjulie(key, order)
+
+                    else if sortOrder.startsWith("totals")
+                        aggIdx = sortOrder.split('_')[1]
+                        order = 1
+                        if aggIdx.startsWith("-")
+                            aggIdx = aggIdx.slice(1)
+                            order = -1
+                        aggIdx = parseInt(aggIdx)
+                        dothethingjulie([], order, aggIdx)
 
                     # TODO: totals (handle agg idx); attr (re-use arrSort())
                     else
                         switch sortOrder
-                            when "value_a_to_z" then keys.sort (a,b) => naturalSort v(a, []), v(b, [])
-                            when "value_z_to_a" then keys.sort (a,b) => -naturalSort v(a, []), v(b, [])
+                            when "value_a_to_z" then dothethingjulie([], 1)
+                            when "value_z_to_a" then dothethingjulie([], -1)
                             else keys.sort @arrSort(attrs)
 
 

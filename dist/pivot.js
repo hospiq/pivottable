@@ -790,7 +790,7 @@
       };
 
       PivotData.prototype.sortKeys = function() {
-        var attrs, idx, key, keys, l, len1, ref, ref1, results, sortOrder, v;
+        var aggIdx, attrs, dothethingjulie, idx, key, keys, l, len1, order, ref, ref1, results, sortOrder, v;
         if (!this.sorted) {
           this.sorted = true;
           ref = [[this.rowOrder, this.rowKeys, this.rowAttrs], [this.colOrder, this.colKeys, this.colAttrs]];
@@ -798,45 +798,49 @@
           for (idx = l = 0, len1 = ref.length; l < len1; idx = ++l) {
             ref1 = ref[idx], sortOrder = ref1[0], keys = ref1[1], attrs = ref1[2];
             v = (function(_this) {
-              return function(k, foo) {
-                var c, r;
+              return function(k, foo, aggIdx) {
+                var agg, c, r;
                 r = idx === 0 ? k : foo;
                 c = idx === 1 ? k : foo;
-                return _this.getAggregator(r, c).value();
+                agg = _this.getAggregator(r, c);
+                if ($.isArray(agg)) {
+                  agg = agg[aggIdx];
+                }
+                return agg.value();
+              };
+            })(this);
+            dothethingjulie = (function(_this) {
+              return function(foo, order, aggIdx) {
+                return keys.sort(function(a, b) {
+                  return naturalSort(v(a, foo, aggIdx), v(b, foo, aggIdx)) * order;
+                });
               };
             })(this);
             if (sortOrder.startsWith("key") && sortOrder !== "key_a_to_z") {
               key = sortOrder.split('_')[1];
+              order = 1;
               if (key.startsWith("-")) {
-                key = key.slice(1).split(String.fromCharCode(0));
-                results.push(keys.sort((function(_this) {
-                  return function(a, b) {
-                    return naturalSort(v(a, key), v(b, key));
-                  };
-                })(this)));
-              } else {
-                key = key.split(String.fromCharCode(0));
-                results.push(keys.sort((function(_this) {
-                  return function(a, b) {
-                    return -naturalSort(v(a, key), v(b, key));
-                  };
-                })(this)));
+                key = key.slice(1);
+                order = -1;
               }
+              key = key.split(String.fromCharCode(0));
+              results.push(dothethingjulie(key, order));
+            } else if (sortOrder.startsWith("totals")) {
+              aggIdx = sortOrder.split('_')[1];
+              order = 1;
+              if (aggIdx.startsWith("-")) {
+                aggIdx = aggIdx.slice(1);
+                order = -1;
+              }
+              aggIdx = parseInt(aggIdx);
+              results.push(dothethingjulie([], order, aggIdx));
             } else {
               switch (sortOrder) {
                 case "value_a_to_z":
-                  results.push(keys.sort((function(_this) {
-                    return function(a, b) {
-                      return naturalSort(v(a, []), v(b, []));
-                    };
-                  })(this)));
+                  results.push(dothethingjulie([], 1));
                   break;
                 case "value_z_to_a":
-                  results.push(keys.sort((function(_this) {
-                    return function(a, b) {
-                      return -naturalSort(v(a, []), v(b, []));
-                    };
-                  })(this)));
+                  results.push(dothethingjulie([], -1));
                   break;
                 default:
                   results.push(keys.sort(this.arrSort(attrs)));
