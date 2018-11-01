@@ -645,7 +645,9 @@ callWithJQuery ($) ->
                         th.textContent = colKey[colAttrIdx]
                     th.setAttribute("colspan", x)
                     if getHeaderClickHandler? and colAttrIdx == (colAttrs.length - 1)
-                        th.onclick = getHeaderClickHandler("col", "key", colKey.join(String.fromCharCode(0)))
+                        flatColKey = colKey.join(String.fromCharCode(0))
+                        th.onclick = getHeaderClickHandler("col", "key", flatColKey)
+                        th.dataset.flatKey = colKey.join("")
 
                     #if this is the last col attr, each col key spans 2 rows (the 2nd being the row attr row)
                     if parseInt(colAttrIdx) == colAttrs.length-1 and rowAttrs.length != 0
@@ -719,7 +721,9 @@ callWithJQuery ($) ->
 
                     #TODO: just realized we should rename this to a sort handler, cuz that's why we only do it for the finest-grained attr
                     if getHeaderClickHandler? and parseInt(rowAttrIdx) == rowAttrs.length-1
-                        th.onclick = getHeaderClickHandler("row", "key", rowKey.join(String.fromCharCode(0)))
+                        flatRowKey = rowKey.join(String.fromCharCode(0))
+                        th.onclick = getHeaderClickHandler("row", "key", flatRowKey)
+                        th.dataset.flatKey = rowKey.join("")  #TODO: document why we can't have \0 in here... fuck me...
 
                     tr.appendChild th
 

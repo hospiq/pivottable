@@ -991,7 +991,7 @@
     Default Renderer for hierarchical table layout
      */
     pivotTableRenderer = function(pivotData, opts) {
-      var agg, aggIdx, aggregator, colAttr, colAttrIdx, colAttrs, colKey, colKeyIdx, colKeys, createHeader, createTotalsCell, createTotalsRow, defaults, getClickHandler, getHeaderClickHandler, i, l, len1, len2, len3, len4, len5, len6, len7, len8, n, o, ref, ref1, ref2, ref3, result, rowAttr, rowAttrIdx, rowAttrs, rowKey, rowKeyIdx, rowKeys, spanSize, t, tbody, td, th, thead, totalAggregator, tr, txt, u, val, w, x, y, z;
+      var agg, aggIdx, aggregator, colAttr, colAttrIdx, colAttrs, colKey, colKeyIdx, colKeys, createHeader, createTotalsCell, createTotalsRow, defaults, flatColKey, flatRowKey, getClickHandler, getHeaderClickHandler, i, l, len1, len2, len3, len4, len5, len6, len7, len8, n, o, ref, ref1, ref2, ref3, result, rowAttr, rowAttrIdx, rowAttrs, rowKey, rowKeyIdx, rowKeys, spanSize, t, tbody, td, th, thead, totalAggregator, tr, txt, u, val, w, x, y, z;
       defaults = {
         table: {
           clickCallback: null
@@ -1097,7 +1097,9 @@
             }
             th.setAttribute("colspan", x);
             if ((getHeaderClickHandler != null) && colAttrIdx === (colAttrs.length - 1)) {
-              th.onclick = getHeaderClickHandler("col", "key", colKey.join(String.fromCharCode(0)));
+              flatColKey = colKey.join(String.fromCharCode(0));
+              th.onclick = getHeaderClickHandler("col", "key", flatColKey);
+              th.dataset.flatKey = colKey.join("");
             }
             if (parseInt(colAttrIdx) === colAttrs.length - 1 && rowAttrs.length !== 0) {
               th.setAttribute("rowspan", 2);
@@ -1173,7 +1175,9 @@
               th.setAttribute("colspan", 2);
             }
             if ((getHeaderClickHandler != null) && parseInt(rowAttrIdx) === rowAttrs.length - 1) {
-              th.onclick = getHeaderClickHandler("row", "key", rowKey.join(String.fromCharCode(0)));
+              flatRowKey = rowKey.join(String.fromCharCode(0));
+              th.onclick = getHeaderClickHandler("row", "key", flatRowKey);
+              th.dataset.flatKey = rowKey.join("");
             }
             tr.appendChild(th);
           }
