@@ -405,11 +405,14 @@ callWithJQuery ($) ->
         #Create sort fn that sorts row/col keys by attribute value.
         #Input is array of attributes on which to sort.
         #Sorts coarser attributes first, e.g.: ["A", 10] < ["B", 1] < ["B", 5]
-        arrSort: (attrs) =>
+        #TODO: document order param
+        arrSort: (attrs, order) =>
             sortersArr = (getSort(@sorters, a) for a in attrs)
             (keyA,keyB) ->
                 for own attrIdx, sorter of sortersArr
                     comparison = sorter(keyA[attrIdx], keyB[attrIdx])
+                    if order? and order[attrIdx] == "-"
+                        comparison *= -1
                     return comparison if comparison != 0
                 return 0
 
@@ -450,6 +453,10 @@ callWithJQuery ($) ->
                             order = -1
                         aggIdx = parseInt(aggIdx)
                         dothethingjulie([], order, aggIdx)
+
+                    else if sortOrder.startsWith("attr")
+                        attrsOrder = sortOrder.split('_').slice(1)
+                        keys.sort @arrSort(attrs, attrsOrder)
 
                     # TODO: totals (handle agg idx); attr (re-use arrSort())
                     else

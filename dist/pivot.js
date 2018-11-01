@@ -764,7 +764,7 @@
         })(this));
       };
 
-      PivotData.prototype.arrSort = function(attrs) {
+      PivotData.prototype.arrSort = function(attrs, order) {
         var a, sortersArr;
         sortersArr = (function() {
           var l, len1, results;
@@ -781,6 +781,9 @@
             if (!hasProp.call(sortersArr, attrIdx)) continue;
             sorter = sortersArr[attrIdx];
             comparison = sorter(keyA[attrIdx], keyB[attrIdx]);
+            if ((order != null) && order[attrIdx] === "-") {
+              comparison *= -1;
+            }
             if (comparison !== 0) {
               return comparison;
             }
@@ -790,7 +793,7 @@
       };
 
       PivotData.prototype.sortKeys = function() {
-        var aggIdx, attrs, dothethingjulie, idx, key, keys, l, len1, order, ref, ref1, results, sortOrder, v;
+        var aggIdx, attrs, attrsOrder, dothethingjulie, idx, key, keys, l, len1, order, ref, ref1, results, sortOrder, v;
         if (!this.sorted) {
           this.sorted = true;
           ref = [[this.rowOrder, this.rowKeys, this.rowAttrs], [this.colOrder, this.colKeys, this.colAttrs]];
@@ -834,6 +837,9 @@
               }
               aggIdx = parseInt(aggIdx);
               results.push(dothethingjulie([], order, aggIdx));
+            } else if (sortOrder.startsWith("attr")) {
+              attrsOrder = sortOrder.split('_').slice(1);
+              results.push(keys.sort(this.arrSort(attrs, attrsOrder)));
             } else {
               switch (sortOrder) {
                 case "value_a_to_z":
