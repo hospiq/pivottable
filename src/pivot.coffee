@@ -301,16 +301,7 @@ callWithJQuery ($) ->
     ###
 
     class PivotData
-        #If there are multiple aggregators, a fake attribute is used to generate the extra cols/rows.
-        #TODO: if these are class constants, the renderer cant read it =/
-        MULTI_AGG_ATTR = "_metrics"
-        MULTI_AGG_ATTR_DISPLAY = "Metrics"
-
         constructor: (input, opts = {}) ->
-            #TODO: not sure why i need these here so that the renderers can use them...
-            @MULTI_AGG_ATTR = MULTI_AGG_ATTR
-            @MULTI_AGG_ATTR_DISPLAY = MULTI_AGG_ATTR_DISPLAY
-
             @input = input
 
             #May be an array of aggregators.
@@ -319,16 +310,20 @@ callWithJQuery ($) ->
             #Only used by pivotUI(). No multi-aggregator support.
             @aggregatorName = opts.aggregatorName ? "Count"
 
+            #If there are multiple aggregators, this fake attribute is used to generate the extra cols/rows.
+            @multiAggAttr = opts.multiAggAttr ? "_metrics"
+
             #Attributes are the record fields selected by the user. Value attributes are for aggregators.
             @colAttrs = opts.cols ? []
             @rowAttrs = opts.rows ? []
             @valAttrs = opts.vals ? []  #Only used by plotly, gchart, and c3 renderers.
 
             #Insert the multi-agg attribute as the last column if not provided already.
-            if $.isArray(@aggregator) and MULTI_AGG_ATTR not in @colAttrs and MULTI_AGG_ATTR not in @rowAttrs
-                @colAttrs.push MULTI_AGG_ATTR
+            if $.isArray(@aggregator) and @multiAggAttr not in @colAttrs and @multiAggAttr not in @rowAttrs
+                @colAttrs.push @multiAggAttr
 
-            #Only used when sorting keys by attribute value. E.g.: sorters[attr]=sortFn
+            #Used when sorting keys by attribute value. See getSort().
+            #Either an object or a fn, e.g.: sorters[attr]=sortFn, or sorters(attr)=sortFn.
             @sorters = opts.sorters ? {}
 
             #How keys are sorted. See @sortKeys() for possible values.
@@ -436,6 +431,7 @@ callWithJQuery ($) ->
                     dothethingjulie = (foo, order, aggIdx) =>
                         keys.sort (a,b) => naturalSort(v(a, foo, aggIdx), v(b, foo, aggIdx)) * order
 
+                    #TODO: prolly want to handle key/value_a_to_z (and z_to_a) separately, both here and in widget; also, no sort order is the default attr_ order, but w/o sort icons
                     if sortOrder.startsWith("key") and sortOrder != "key_a_to_z"
                         key = sortOrder.split('_')[1]
                         order = 1
@@ -480,9 +476,9 @@ callWithJQuery ($) ->
             #In multi-metric mode, process record once per aggregator.
             if $.isArray(@aggregator) and not aggIdx?
                 for agg, aggIdx in @aggregator
-                    record[MULTI_AGG_ATTR] = aggIdx
+                    record[@multiAggAttr] = aggIdx
                     @processRecord(record, aggIdx)
-                delete record[MULTI_AGG_ATTR]  #TODO: dont modify record, but manually insert into keys?
+                delete record[@multiAggAttr]  #TODO: dont modify record, but manually insert into keys?
                 return
 
             aggregator = if aggIdx? then @aggregator[aggIdx] else @aggregator
@@ -499,7 +495,7 @@ callWithJQuery ($) ->
             allTotal.push record
 
             #TODO: consolidate, please....
-            isMultiRowTotals = aggIdx? and MULTI_AGG_ATTR in @colAttrs
+            isMultiRowTotals = aggIdx? and @multiAggAttr in @colAttrs
             if rowKey.length != 0
                 #First time we've seen key: add it to keys array, and instantiate totals aggregator.
                 if not @rowTotals[flatRowKey]
@@ -516,7 +512,7 @@ callWithJQuery ($) ->
                     rowTotalAgg = rowTotalAgg[aggIdx]
                 rowTotalAgg.push record
 
-            isMultiColTotals = aggIdx? and MULTI_AGG_ATTR in @rowAttrs
+            isMultiColTotals = aggIdx? and @multiAggAttr in @rowAttrs
             if colKey.length != 0
                 #First time we've seen key: add it to keys array, and instantiate totals aggregator.
                 if not @colTotals[flatColKey]
@@ -627,8 +623,6 @@ callWithJQuery ($) ->
             th = document.createElement("th")
             th.className = "pvtAxisLabel"
             th.textContent = colAttr
-            if $.isArray(pivotData.aggregator) and colAttr == pivotData.MULTI_AGG_ATTR
-                th.textContent = pivotData.MULTI_AGG_ATTR_DISPLAY  #TODO: hmm, so, we prolly don't need to post-process this in our code
             if getHeaderClickHandler?
                 th.onclick = getHeaderClickHandler("col", "attr", colAttr)
             tr.appendChild th
@@ -662,14 +656,14 @@ callWithJQuery ($) ->
                     th.className = "pvtTotalLabel pvtRowTotalLabel"
                     th.innerHTML = opts.localeStrings.totals
                     if aggIdx?
-                        th.innerHTML += " (#{aggIdx})"
+                        th.dataset.aggIdx = aggIdx
                     th.setAttribute("rowspan", colAttrs.length + (if rowAttrs.length ==0 then 0 else 1))
                     if getHeaderClickHandler?
                         th.onclick = getHeaderClickHandler("col", "totals", aggIdx or 0)
                     tr.appendChild th
 
                 #In multi-metric mode, if "Metrics" attr is a col, there is one row totals col per aggregator.
-                if $.isArray(pivotData.aggregator) and pivotData.MULTI_AGG_ATTR in colAttrs
+                if $.isArray(pivotData.aggregator) and pivotData.multiAggAttr in colAttrs
                     for agg, aggIdx in pivotData.aggregator
                         createHeader(aggIdx)
                 else
@@ -769,7 +763,7 @@ callWithJQuery ($) ->
             th.className = "pvtTotalLabel pvtColTotalLabel"
             th.innerHTML = opts.localeStrings.totals
             if aggIdx?
-                th.innerHTML += " (#{aggIdx})"
+                th.dataset.aggIdx = aggIdx
             th.setAttribute("colspan", rowAttrs.length + (if colAttrs.length == 0 then 0 else 1))
             if getHeaderClickHandler?
                 th.onclick = getHeaderClickHandler("row", "totals", aggIdx or 0)
@@ -817,7 +811,7 @@ callWithJQuery ($) ->
 
         #In multi-metric mode, if the "Metrics" attr is a row, there is one
         #col totals row per aggregator.
-        if $.isArray(pivotData.aggregator) and pivotData.MULTI_AGG_ATTR in rowAttrs
+        if $.isArray(pivotData.aggregator) and pivotData.multiAggAttr in rowAttrs
             for agg, aggIdx in pivotData.aggregator
                 createTotalsRow(aggIdx)
         else
