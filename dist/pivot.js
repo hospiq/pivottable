@@ -861,7 +861,7 @@
       };
 
       PivotData.prototype.processRecord = function(record, aggIdx) {
-        var agg, aggregator, allTotal, colKey, colTotalAgg, flatColKey, flatRowKey, isMultiColTotals, isMultiRowTotals, l, len1, len2, len3, n, o, ref, ref1, ref2, ref3, ref4, ref5, ref6, rowKey, rowTotalAgg, x;
+        var agg, aggregator, allTotal, attrs, colKey, flatColKey, flatKey, flatRowKey, getTotalsAgg, isMultiTotals, keys, l, len1, len2, len3, len4, n, o, rawKey, ref, ref1, ref2, ref3, ref4, ref5, ref6, ref7, rowKey, rowOrCol, t, totals, totalsAgg, x;
         if ($.isArray(this.aggregator) && (aggIdx == null)) {
           ref = this.aggregator;
           for (aggIdx = l = 0, len1 = ref.length; l < len1; aggIdx = ++l) {
@@ -889,43 +889,30 @@
         flatColKey = colKey.join(String.fromCharCode(0));
         allTotal = aggIdx != null ? this.allTotal[aggIdx] : this.allTotal;
         allTotal.push(record);
-        isMultiRowTotals = (aggIdx != null) && (ref5 = this.multiAggAttr, indexOf.call(this.colAttrs, ref5) >= 0);
-        if (rowKey.length !== 0) {
-          if (!this.rowTotals[flatRowKey]) {
-            this.rowKeys.push(rowKey);
-            if (isMultiRowTotals) {
-              this.rowTotals[flatRowKey] = [];
-            } else {
-              this.rowTotals[flatRowKey] = aggregator(this, rowKey, []);
+        getTotalsAgg = function(rowOrCol, key) {
+          var c, r;
+          r = rowOrCol === "row" ? key : [];
+          c = rowOrCol === "row" ? [] : key;
+          return aggregator(this, r, c);
+        };
+        ref5 = [["row", this.colAttrs, this.rowKeys, rowKey, flatRowKey, this.rowTotals], ["col", this.rowAttrs, this.colKeys, colKey, flatColKey, this.colTotals]];
+        for (t = 0, len4 = ref5.length; t < len4; t++) {
+          ref6 = ref5[t], rowOrCol = ref6[0], attrs = ref6[1], keys = ref6[2], rawKey = ref6[3], flatKey = ref6[4], totals = ref6[5];
+          isMultiTotals = (aggIdx != null) && (ref7 = this.multiAggAttr, indexOf.call(attrs, ref7) >= 0);
+          if (rawKey.length !== 0) {
+            if (!totals[flatKey]) {
+              keys.push(rawKey);
+              totals[flatKey] = isMultiTotals ? [] : getTotalsAgg(rowOrCol, rawKey);
             }
-          }
-          if (isMultiRowTotals && !this.rowTotals[flatRowKey][aggIdx]) {
-            this.rowTotals[flatRowKey][aggIdx] = aggregator(this, rowKey, []);
-          }
-          rowTotalAgg = this.rowTotals[flatRowKey];
-          if (isMultiRowTotals) {
-            rowTotalAgg = rowTotalAgg[aggIdx];
-          }
-          rowTotalAgg.push(record);
-        }
-        isMultiColTotals = (aggIdx != null) && (ref6 = this.multiAggAttr, indexOf.call(this.rowAttrs, ref6) >= 0);
-        if (colKey.length !== 0) {
-          if (!this.colTotals[flatColKey]) {
-            this.colKeys.push(colKey);
-            if (isMultiColTotals) {
-              this.colTotals[flatColKey] = [];
-            } else {
-              this.colTotals[flatColKey] = aggregator(this, [], colKey);
+            if (isMultiTotals && !totals[flatKey][aggIdx]) {
+              totals[flatKey][aggIdx] = getTotalsAgg(rowOrCol, rawKey);
             }
+            totalsAgg = totals[flatKey];
+            if (isMultiTotals) {
+              totalsAgg = totalsAgg[aggIdx];
+            }
+            totalsAgg.push(record);
           }
-          if (isMultiColTotals && !this.colTotals[flatColKey][aggIdx]) {
-            this.colTotals[flatColKey][aggIdx] = aggregator(this, [], colKey);
-          }
-          colTotalAgg = this.colTotals[flatColKey];
-          if (isMultiColTotals) {
-            colTotalAgg = colTotalAgg[aggIdx];
-          }
-          colTotalAgg.push(record);
         }
         if (colKey.length !== 0 && rowKey.length !== 0) {
           if (!this.tree[flatRowKey]) {

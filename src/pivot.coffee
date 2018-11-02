@@ -313,7 +313,7 @@ callWithJQuery ($) ->
             #If there are multiple aggregators, this fake attribute is used to generate the extra cols/rows.
             @multiAggAttr = opts.multiAggAttr ? "_metrics"
 
-            #Attributes are the record fields selected by the user. Value attributes are for aggregators.
+            #Attributes are the record fields selected by the user. Value attributes are used to instantiate aggregators.
             @colAttrs = opts.cols ? []
             @rowAttrs = opts.rows ? []
             @valAttrs = opts.vals ? []  #Only used by plotly, gchart, and c3 renderers.
@@ -341,7 +341,7 @@ callWithJQuery ($) ->
             @colKeys = []
 
             #Aggregator instances, one per value cell in the table. Created in @processData().
-            #Normal (non-total) aggregators, at tree[rowKey][colKey].
+            #Normal aggregators, at tree[rowKey][colKey].
             @tree = {}
             #Row/col total aggregators, at rowTotals[rowKey] and colTotals[colKey].
             #In multi-metric mode, the values are arrays.
@@ -470,7 +470,9 @@ callWithJQuery ($) ->
             @sortKeys()
             return @rowKeys
 
-        #TODO: document + cleanup
+        #Generate keys for the record, and update all corresponding aggregators
+        #(i.e., the grand total, row/col total, and normal row+col aggregators).
+        #:aggIdx: In multi-metrics mode, index into the @aggregator array.
         processRecord: (record, aggIdx) -> #this code is called in a tight loop
 
             #In multi-metric mode, process record once per aggregator.
@@ -478,7 +480,7 @@ callWithJQuery ($) ->
                 for agg, aggIdx in @aggregator
                     record[@multiAggAttr] = aggIdx
                     @processRecord(record, aggIdx)
-                delete record[@multiAggAttr]  #TODO: dont modify record, but manually insert into keys?
+                delete record[@multiAggAttr]  # leave records unmodified
                 return
 
             aggregator = if aggIdx? then @aggregator[aggIdx] else @aggregator
@@ -494,40 +496,28 @@ callWithJQuery ($) ->
             allTotal = if aggIdx? then @allTotal[aggIdx] else @allTotal
             allTotal.push record
 
-            #TODO: consolidate, please....
-            isMultiRowTotals = aggIdx? and @multiAggAttr in @colAttrs
-            if rowKey.length != 0
-                #First time we've seen key: add it to keys array, and instantiate totals aggregator.
-                if not @rowTotals[flatRowKey]
-                    @rowKeys.push rowKey
-                    if isMultiRowTotals
-                        @rowTotals[flatRowKey] = []
-                    else
-                        @rowTotals[flatRowKey] = aggregator(this, rowKey, [])
-                if isMultiRowTotals and not @rowTotals[flatRowKey][aggIdx]
-                  @rowTotals[flatRowKey][aggIdx] = aggregator(this, rowKey, [])
-                #Push the record to the aggregator.
-                rowTotalAgg = @rowTotals[flatRowKey]
-                if isMultiRowTotals
-                    rowTotalAgg = rowTotalAgg[aggIdx]
-                rowTotalAgg.push record
+            getTotalsAgg = (rowOrCol, key) ->
+                r = if rowOrCol == "row" then key else []
+                c = if rowOrCol == "row" then [] else key
+                return aggregator(this, r, c)
 
-            isMultiColTotals = aggIdx? and @multiAggAttr in @rowAttrs
-            if colKey.length != 0
-                #First time we've seen key: add it to keys array, and instantiate totals aggregator.
-                if not @colTotals[flatColKey]
-                    @colKeys.push colKey
-                    if isMultiColTotals
-                        @colTotals[flatColKey] = []
-                    else
-                        @colTotals[flatColKey] = aggregator(this, [], colKey)
-                if isMultiColTotals and not @colTotals[flatColKey][aggIdx]
-                    @colTotals[flatColKey][aggIdx] = aggregator(this, [], colKey)
-                #Push record to the aggregator.
-                colTotalAgg = @colTotals[flatColKey]
-                if isMultiColTotals
-                    colTotalAgg = colTotalAgg[aggIdx]
-                colTotalAgg.push record
+            for [rowOrCol, attrs, keys, rawKey, flatKey, totals] in [
+              ["row", @colAttrs, @rowKeys, rowKey, flatRowKey, @rowTotals],
+              ["col", @rowAttrs, @colKeys, colKey, flatColKey, @colTotals]
+            ]
+                isMultiTotals = aggIdx? and @multiAggAttr in attrs
+                if rawKey.length != 0
+                    #First time we've seen this key: create totals aggregator.
+                    if not totals[flatKey]
+                        keys.push rawKey
+                        totals[flatKey] = if isMultiTotals then [] else getTotalsAgg(rowOrCol, rawKey)
+                    if isMultiTotals and not totals[flatKey][aggIdx]
+                        totals[flatKey][aggIdx] = getTotalsAgg(rowOrCol, rawKey)
+                    #Push record to the totals aggregator.
+                    totalsAgg = totals[flatKey]
+                    if isMultiTotals
+                        totalsAgg = totalsAgg[aggIdx]
+                    totalsAgg.push record
 
             if colKey.length != 0 and rowKey.length != 0
                 if not @tree[flatRowKey]
