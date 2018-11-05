@@ -891,12 +891,14 @@
         flatColKey = colKey.join(String.fromCharCode(0));
         allTotal = aggIdx != null ? this.allTotal[aggIdx] : this.allTotal;
         allTotal.push(record);
-        getTotalsAgg = function(rowOrCol, key) {
-          var c, r;
-          r = rowOrCol === "row" ? key : [];
-          c = rowOrCol === "row" ? [] : key;
-          return aggregator(this, r, c);
-        };
+        getTotalsAgg = (function(_this) {
+          return function(rowOrCol, key) {
+            var c, r;
+            r = rowOrCol === "row" ? key : [];
+            c = rowOrCol === "row" ? [] : key;
+            return aggregator(_this, r, c);
+          };
+        })(this);
         ref5 = [["row", this.colAttrs, this.rowKeys, rowKey, flatRowKey, this.rowTotals], ["col", this.rowAttrs, this.colKeys, colKey, flatColKey, this.colTotals]];
         for (t = 0, len4 = ref5.length; t < len4; t++) {
           ref6 = ref5[t], rowOrCol = ref6[0], attrs = ref6[1], keys = ref6[2], rawKey = ref6[3], flatKey = ref6[4], totals = ref6[5];

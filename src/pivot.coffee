@@ -512,7 +512,7 @@ callWithJQuery ($) ->
             allTotal = if aggIdx? then @allTotal[aggIdx] else @allTotal
             allTotal.push record
 
-            getTotalsAgg = (rowOrCol, key) ->
+            getTotalsAgg = (rowOrCol, key) =>  #need closure over PivotData `this`
                 r = if rowOrCol == "row" then key else []
                 c = if rowOrCol == "row" then [] else key
                 return aggregator(this, r, c)
