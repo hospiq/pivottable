@@ -786,68 +786,70 @@
       };
 
       PivotData.prototype.sortKeys = function() {
-        var aggIdx, attrs, attrsOrder, dothethingjulie, idx, key, keys, l, len1, order, ref, ref1, results, sortOrder, v;
-        if (!this.sorted) {
-          this.sorted = true;
-          ref = [[this.rowOrder, this.rowKeys, this.rowAttrs], [this.colOrder, this.colKeys, this.colAttrs]];
-          results = [];
-          for (idx = l = 0, len1 = ref.length; l < len1; idx = ++l) {
-            ref1 = ref[idx], sortOrder = ref1[0], keys = ref1[1], attrs = ref1[2];
-            v = (function(_this) {
-              return function(k, foo, aggIdx) {
-                var agg, c, r;
-                r = idx === 0 ? k : foo;
-                c = idx === 1 ? k : foo;
-                agg = _this.getAggregator(r, c);
+        var _sortByAggVal, aggIdx, attrs, attrsOrder, idx, isDesc, isRow, key, keys, l, len1, ref, ref1, results, sortOrder, sortParts, sortType, sortVal;
+        if (this.sorted) {
+          return;
+        }
+        this.sorted = true;
+        ref = [[this.rowOrder, this.rowKeys, this.rowAttrs], [this.colOrder, this.colKeys, this.colAttrs]];
+        results = [];
+        for (idx = l = 0, len1 = ref.length; l < len1; idx = ++l) {
+          ref1 = ref[idx], sortOrder = ref1[0], keys = ref1[1], attrs = ref1[2];
+          isRow = idx === 0;
+          _sortByAggVal = (function(_this) {
+            return function(comparisonKey, isDesc, aggIdx) {
+              var _getVal;
+              _getVal = function(sortKey) {
+                var agg, col, row;
+                row = isRow ? sortKey : comparisonKey;
+                col = !isRow ? sortKey : comparisonKey;
+                agg = _this.getAggregator(row, col);
                 if ($.isArray(agg)) {
-                  agg = agg[aggIdx];
+                  agg = agg[aggIdx || 0];
                 }
                 return agg.value();
               };
-            })(this);
-            dothethingjulie = (function(_this) {
-              return function(foo, order, aggIdx) {
-                return keys.sort(function(a, b) {
-                  return naturalSort(v(a, foo, aggIdx), v(b, foo, aggIdx)) * order;
-                });
-              };
-            })(this);
-            if (sortOrder.startsWith("key") && sortOrder !== "key_a_to_z") {
-              key = sortOrder.split('_')[1];
-              order = 1;
-              if (key.startsWith("-")) {
-                key = key.slice(1);
-                order = -1;
-              }
-              key = key.split(String.fromCharCode(0));
-              results.push(dothethingjulie(key, order));
-            } else if (sortOrder.startsWith("totals")) {
-              aggIdx = sortOrder.split('_')[1];
-              order = 1;
-              if (aggIdx.startsWith("-")) {
-                aggIdx = aggIdx.slice(1);
-                order = -1;
-              }
-              aggIdx = parseInt(aggIdx);
-              results.push(dothethingjulie([], order, aggIdx));
-            } else if (sortOrder.startsWith("attr")) {
-              attrsOrder = sortOrder.split('_').slice(1);
-              results.push(keys.sort(this.arrSort(attrs, attrsOrder)));
-            } else {
-              switch (sortOrder) {
-                case "value_a_to_z":
-                  results.push(dothethingjulie([], 1));
-                  break;
-                case "value_z_to_a":
-                  results.push(dothethingjulie([], -1));
+              return keys.sort(function(a, b) {
+                return naturalSort(_getVal(a), _getVal(b)) * (isDesc ? -1 : 1);
+              });
+            };
+          })(this);
+          switch (sortOrder) {
+            case "value_a_to_z":
+              results.push(_sortByAggVal([]));
+              break;
+            case "value_z_to_a":
+              results.push(_sortByAggVal([], true));
+              break;
+            case "key_a_to_z":
+              results.push(keys.sort(this.arrSort(attrs)));
+              break;
+            default:
+              sortParts = sortOrder.split("_");
+              sortType = sortParts[0];
+              switch (sortType) {
+                case "attr":
+                  attrsOrder = sortParts.slice(1);
+                  results.push(keys.sort(this.arrSort(attrs, attrsOrder)));
                   break;
                 default:
-                  results.push(keys.sort(this.arrSort(attrs)));
+                  sortVal = sortParts[1];
+                  isDesc = false;
+                  if (sortVal.startsWith("-")) {
+                    sortVal = sortVal.slice(1);
+                    isDesc = true;
+                  }
+                  if (sortType === "key") {
+                    key = sortVal.split(String.fromCharCode(0));
+                    results.push(_sortByAggVal(key, isDesc));
+                  } else {
+                    aggIdx = parseInt(sortVal);
+                    results.push(_sortByAggVal([], isDesc, aggIdx));
+                  }
               }
-            }
           }
-          return results;
         }
+        return results;
       };
 
       PivotData.prototype.getColKeys = function() {

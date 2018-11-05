@@ -398,9 +398,11 @@ callWithJQuery ($) ->
                 callback(record)
 
         #Create sort fn that sorts row/col keys by attribute value.
-        #Input is array of attributes on which to sort.
-        #Sorts coarser attributes first, e.g.: ["A", 10] < ["B", 1] < ["B", 5]
-        #TODO: document order param
+        #Sorts coarser attributes first, e.g.: ["A", 10] < ["B", 1] < ["B", 5].
+        #`attrs`: Array of attributes on which to sort. Assumes keys are
+        #  composed of these attributes.
+        #`order`: Array of "+" or "-" values, one per attribute. "-"
+        #  indicates a descending sort.
         arrSort: (attrs, order) =>
             sortersArr = (getSort(@sorters, a) for a in attrs)
             (keyA,keyB) ->
@@ -411,56 +413,70 @@ callWithJQuery ($) ->
                     return comparison if comparison != 0
                 return 0
 
-        #TODO: describe possible row/colOrder values & cleanup
+        #Sort row and col keys based on @rowOrder and @colOrder. Possible values:
+        #  `key_[-]flatKey`: Sort based on the values for the given key, in "flat"
+        #    form (\0-separated string). Optional "-" for descending sort.
+        #  `totals_[-]aggIdx`: Sort based on the totals values. aggIdx is the index
+        #    of the aggregator to use (ignored if not multi-metrics mode). Optional
+        #    "-" for descending sort.
+        #  `attr_[+|-]_...`: Sort based on attribute values. There is one asc/desc
+        #    indicator per attribute.
+        #  `value_[a_to_z|z_to_a]`: Legacy sort on totals values. Does not support
+        #    multi-metrics mode.
+        #  `key_[a_to_z]`: Legacy sort on attribute values, all ascending.
         sortKeys: () =>
-            if not @sorted
-                @sorted = true
+            if @sorted
+                return
+            @sorted = true
 
-                for [sortOrder, keys, attrs], idx in [
-                  [@rowOrder, @rowKeys, @rowAttrs],
-                  [@colOrder, @colKeys, @colAttrs]
-                ]
-                    v = (k, foo, aggIdx) =>
-                        r = if idx == 0 then k else foo
-                        c = if idx == 1 then k else foo
-                        agg = @getAggregator(r,c)
+            for [sortOrder, keys, attrs], idx in [
+              [@rowOrder, @rowKeys, @rowAttrs],
+              [@colOrder, @colKeys, @colAttrs]
+            ]
+                isRow = idx == 0
+
+                #Sort keys by the value of the aggregator at `comparisonKey`.
+                #If `isDesc` is true, does a descending sort. In multi-metrics
+                #mode, `aggIdx` is the index of the totals aggregator to use.
+                _sortByAggVal = (comparisonKey, isDesc, aggIdx) =>
+                    _getVal = (sortKey) =>
+                        row = if isRow then sortKey else comparisonKey
+                        col = if not isRow then sortKey else comparisonKey
+                        agg = @getAggregator(row, col)
                         if $.isArray(agg)
-                            agg = agg[aggIdx]
+                            agg = agg[aggIdx or 0]
                         return agg.value()
 
-                    dothethingjulie = (foo, order, aggIdx) =>
-                        keys.sort (a,b) => naturalSort(v(a, foo, aggIdx), v(b, foo, aggIdx)) * order
+                    keys.sort (a,b) => naturalSort(_getVal(a), _getVal(b)) * (if isDesc then -1 else 1)
 
-                    #TODO: prolly want to handle key/value_a_to_z (and z_to_a) separately, both here and in widget; also, no sort order is the default attr_ order, but w/o sort icons
-                    if sortOrder.startsWith("key") and sortOrder != "key_a_to_z"
-                        key = sortOrder.split('_')[1]
-                        order = 1
-                        if key.startsWith("-")
-                            key = key.slice(1)
-                            order = -1
-                        key = key.split(String.fromCharCode(0))
-                        dothethingjulie(key, order)
-
-                    else if sortOrder.startsWith("totals")
-                        aggIdx = sortOrder.split('_')[1]
-                        order = 1
-                        if aggIdx.startsWith("-")
-                            aggIdx = aggIdx.slice(1)
-                            order = -1
-                        aggIdx = parseInt(aggIdx)
-                        dothethingjulie([], order, aggIdx)
-
-                    else if sortOrder.startsWith("attr")
-                        attrsOrder = sortOrder.split('_').slice(1)
-                        keys.sort @arrSort(attrs, attrsOrder)
-
-                    # TODO: totals (handle agg idx); attr (re-use arrSort())
+                switch sortOrder
+                    #Legacy sorts.
+                    when "value_a_to_z" then _sortByAggVal([])
+                    when "value_z_to_a" then _sortByAggVal([], true)
+                    when "key_a_to_z" then keys.sort @arrSort(attrs)
                     else
-                        switch sortOrder
-                            when "value_a_to_z" then dothethingjulie([], 1)
-                            when "value_z_to_a" then dothethingjulie([], -1)
-                            else keys.sort @arrSort(attrs)
+                        sortParts = sortOrder.split("_")
+                        sortType = sortParts[0]
 
+                        switch sortType
+                            when "attr"
+                                attrsOrder = sortParts.slice(1)
+                                keys.sort @arrSort(attrs, attrsOrder)
+                            else
+                                sortVal = sortParts[1]
+
+                                #Check for descending sort.
+                                isDesc = false
+                                if sortVal.startsWith("-")
+                                    sortVal = sortVal.slice(1)
+                                    isDesc = true
+
+                                if sortType == "key"
+                                    key = sortVal.split(String.fromCharCode(0))
+                                    _sortByAggVal(key, isDesc)
+                                else  # sortType == "totals"
+                                    aggIdx = parseInt(sortVal)
+                                    _sortByAggVal([], isDesc, aggIdx)
 
         getColKeys: () =>
             @sortKeys()
