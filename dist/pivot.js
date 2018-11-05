@@ -1128,6 +1128,9 @@
         if (colAttrs.length === 0) {
           th.className = "pvtTotalLabel pvtRowTotalLabel";
           th.innerHTML = opts.localeStrings.totals;
+          if (getHeaderClickHandler != null) {
+            th.onclick = getHeaderClickHandler("col", "totals", 0);
+          }
         }
         tr.appendChild(th);
         thead.appendChild(tr);

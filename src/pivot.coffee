@@ -644,9 +644,13 @@ callWithJQuery ($) ->
                     else
                         th.textContent = colKey[colAttrIdx]
                     th.setAttribute("colspan", x)
+
+                    #Only allow clicking on the finest-grained attribute.
                     if getHeaderClickHandler? and colAttrIdx == (colAttrs.length - 1)
                         flatColKey = colKey.join(String.fromCharCode(0))
                         th.onclick = getHeaderClickHandler("col", "key", flatColKey)
+                        #Add key to data-set for post-processing sort icons. CSS selectors
+                        #don't work w/code point 0, but we don't need the separators anyway.
                         th.dataset.flatKey = colKey.join("")
 
                     #if this is the last col attr, each col key spans 2 rows (the 2nd being the row attr row)
@@ -690,9 +694,11 @@ callWithJQuery ($) ->
             th = document.createElement("th")  #empty cell below col attr cells
             if colAttrs.length ==0
                 #use empty cell for the row totals if there are no col attrs
-                #TODO: multi-metric support? prolly none, since "Metrics" is a row. also: sort!
                 th.className = "pvtTotalLabel pvtRowTotalLabel"
                 th.innerHTML = opts.localeStrings.totals
+                if getHeaderClickHandler?
+                    #there is only one col totals aggregator
+                    th.onclick = getHeaderClickHandler("col", "totals", 0)
             tr.appendChild th
             thead.appendChild tr
 
@@ -719,11 +725,12 @@ callWithJQuery ($) ->
                     if parseInt(rowAttrIdx) == rowAttrs.length-1 and colAttrs.length !=0
                         th.setAttribute("colspan",2)
 
-                    #TODO: just realized we should rename this to a sort handler, cuz that's why we only do it for the finest-grained attr
                     if getHeaderClickHandler? and parseInt(rowAttrIdx) == rowAttrs.length-1
                         flatRowKey = rowKey.join(String.fromCharCode(0))
                         th.onclick = getHeaderClickHandler("row", "key", flatRowKey)
-                        th.dataset.flatKey = rowKey.join("")  #TODO: document why we can't have \0 in here... fuck me...
+                        #Add key to data-set for post-processing sort icons. CSS selectors
+                        #don't work w/code point 0, but we don't need the separators anyway.
+                        th.dataset.flatKey = rowKey.join("")
 
                     tr.appendChild th
 
@@ -786,7 +793,7 @@ callWithJQuery ($) ->
                 td.textContent = totalAggregator.format(val)
                 td.setAttribute("data-value", val)
                 if getClickHandler?
-                    td.onclick = getClickHandler(val, [], colKey)  #TODO: hmm, so, here, there's way to know which agg was clicked; prolly OK for drill-downs.
+                    td.onclick = getClickHandler(val, [], colKey)
                 td.setAttribute("data-for", "col"+colKeyIdx)
                 tr.appendChild td
 
