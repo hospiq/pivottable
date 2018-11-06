@@ -132,12 +132,19 @@ callWithJQuery ($) ->
             format: formatter
             numInputs: if num? and denom? then 0 else 2
 
-        fractionOf: (wrapped, type="total", formatter=usFmtPct) -> (x...) -> (data, rowKey, colKey) ->
+        #To support multi-metrics mode, these aggregator factories must be
+        #instantiated with the aggregator index, so that value() knows how
+        # to find the corresponding fractionOf aggregator for the denominator.
+        fractionOf: (wrapped, type="total", formatter=usFmtPct) -> (aggIdx, x...) -> (data, rowKey, colKey) ->
             selector: {total:[[],[]],row:[rowKey,[]],col:[[],colKey]}[type]
             inner: wrapped(x...)(data, rowKey, colKey)
             push: (record) -> @inner.push record
             format: formatter
-            value: -> @inner.value() / data.getAggregator(@selector...).inner.value()
+            value: ->
+                agg = data.getAggregator(@selector...)
+                if $.isArray(agg)
+                    agg = agg[aggIdx]
+                return @inner.value() / agg.inner.value()
             numInputs: wrapped(x...)().numInputs
 
     aggregatorTemplates.countUnique = (f) -> aggregatorTemplates.uniques(((x) -> x.length), f)
@@ -303,27 +310,59 @@ callWithJQuery ($) ->
     class PivotData
         constructor: (input, opts = {}) ->
             @input = input
+
+            #May be an array of aggregators.
             @aggregator = opts.aggregator ? aggregatorTemplates.count()()
+
+            #Only used by pivotUI(). No multi-aggregator support.
             @aggregatorName = opts.aggregatorName ? "Count"
+
+            #If there are multiple aggregators, this fake attribute is used to generate the extra cols/rows.
+            @multiAggAttr = opts.multiAggAttr ? "_metrics"
+
+            #Attributes are the record fields selected by the user. Value attributes are used to instantiate aggregators.
             @colAttrs = opts.cols ? []
             @rowAttrs = opts.rows ? []
-            @valAttrs = opts.vals ? []
+            @valAttrs = opts.vals ? []  #Only used by plotly, gchart, and c3 renderers.
+
+            #Insert the multi-agg attribute as the last column if not provided already.
+            if $.isArray(@aggregator) and @multiAggAttr not in @colAttrs and @multiAggAttr not in @rowAttrs
+                @colAttrs.push @multiAggAttr
+
+            #Used when sorting keys by attribute value. See getSort().
+            #Either an object or a fn, e.g.: sorters[attr]=sortFn, or sorters(attr)=sortFn.
             @sorters = opts.sorters ? {}
+
+            #How keys are sorted. See @sortKeys() for possible values.
             @rowOrder = opts.rowOrder ? "key_a_to_z"
             @colOrder = opts.colOrder ? "key_a_to_z"
+
+            #HIQ client derives its own attributes, and does not use this property.
             @derivedAttributes = opts.derivedAttributes ? {}
+
             @filter = opts.filter ? (-> true)
             @emptyValue = opts.emptyValue ? 'null'
-            @tree = {}
+
+            #Keys are generated tuples of attribute values.
             @rowKeys = []
             @colKeys = []
+
+            #Aggregator instances, one per value cell in the table. Created in @processData().
+            #Normal aggregators, at tree[rowKey][colKey].
+            @tree = {}
+            #Row/col total aggregators, at rowTotals[rowKey] and colTotals[colKey].
+            #In multi-metric mode, the values are arrays.
             @rowTotals = {}
             @colTotals = {}
-            @allTotal = @aggregator(this, [], [])
+            #Grand total aggregator. In multi-metric mode, this is an array.
+            @allTotal = if not $.isArray(@aggregator) then @aggregator(this, [], []) else @aggregator.map((agg) => agg(this, [], []))
+
+            #Keys are not sorted on init, but when first accessed (e.g. in getRowKeys()).
             @sorted = false
+
             @opts = opts
 
-            # iterate through input, accumulating data for cells
+            #Generate table cells and aggregators from records that pass the filter.
             PivotData.forEachRecord input, opts, (record) =>
                 @processRecord(record) if opts.filter(record)
 
@@ -357,6 +396,7 @@ callWithJQuery ($) ->
             else
                 throw new Error("unknown input format")
 
+        #Only used by examples/mps_prepop.html. Covered in tests/pivot_spec.coffee.
         forEachMatchingRecord: (criteria, callback) ->
             PivotData.forEachRecord @input, @opts, (record) =>
                 return if not @opts.filter(record)
@@ -364,26 +404,86 @@ callWithJQuery ($) ->
                     return if v != (record[k] ? @emptyValue)
                 callback(record)
 
-        arrSort: (attrs) =>
+        #Create sort fn that sorts row/col keys by attribute value.
+        #Sorts coarser attributes first, e.g.: ["A", 10] < ["B", 1] < ["B", 5].
+        #`attrs`: Array of attributes on which to sort. Assumes keys are
+        #  composed of these attributes.
+        #`order`: Array of "+" or "-" values, one per attribute. "-"
+        #  indicates a descending sort.
+        arrSort: (attrs, order) =>
             sortersArr = (getSort(@sorters, a) for a in attrs)
-            (a,b) ->
-                for own i, sorter of sortersArr
-                    comparison = sorter(a[i], b[i])
+            (keyA,keyB) ->
+                for own attrIdx, sorter of sortersArr
+                    comparison = sorter(keyA[attrIdx], keyB[attrIdx])
+                    if order? and order[attrIdx] == "-"
+                        comparison *= -1
                     return comparison if comparison != 0
                 return 0
 
+        #Sort row and col keys based on @rowOrder and @colOrder. Possible values:
+        #  `key_[-]flatKey`: Sort based on the values for the given key, in "flat"
+        #    form (\0-separated string). Optional "-" for descending sort.
+        #  `totals_[-]aggIdx`: Sort based on the totals values. aggIdx is the index
+        #    of the aggregator to use (ignored if not multi-metrics mode). Optional
+        #    "-" for descending sort.
+        #  `attr_[+|-]_...`: Sort based on attribute values. There is one asc/desc
+        #    indicator per attribute.
+        #  `value_[a_to_z|z_to_a]`: Legacy sort on totals values. Does not support
+        #    multi-metrics mode.
+        #  `key_[a_to_z]`: Legacy sort on attribute values, all ascending.
         sortKeys: () =>
-            if not @sorted
-                @sorted = true
-                v = (r,c) => @getAggregator(r,c).value()
-                switch @rowOrder
-                    when "value_a_to_z"  then @rowKeys.sort (a,b) =>  naturalSort v(a,[]), v(b,[])
-                    when "value_z_to_a" then @rowKeys.sort (a,b) => -naturalSort v(a,[]), v(b,[])
-                    else             @rowKeys.sort @arrSort(@rowAttrs)
-                switch @colOrder
-                    when "value_a_to_z"  then @colKeys.sort (a,b) =>  naturalSort v([],a), v([],b)
-                    when "value_z_to_a" then @colKeys.sort (a,b) => -naturalSort v([],a), v([],b)
-                    else             @colKeys.sort @arrSort(@colAttrs)
+            if @sorted
+                return
+            @sorted = true
+
+            for [sortOrder, keys, attrs], idx in [
+              [@rowOrder, @rowKeys, @rowAttrs],
+              [@colOrder, @colKeys, @colAttrs]
+            ]
+                isRow = idx == 0
+
+                #Sort keys by the value of the aggregator at `comparisonKey`.
+                #If `isDesc` is true, does a descending sort. In multi-metrics
+                #mode, `aggIdx` is the index of the totals aggregator to use.
+                _sortByAggVal = (comparisonKey, isDesc, aggIdx) =>
+                    _getVal = (sortKey) =>
+                        row = if isRow then sortKey else comparisonKey
+                        col = if not isRow then sortKey else comparisonKey
+                        agg = @getAggregator(row, col)
+                        if $.isArray(agg)
+                            agg = agg[aggIdx or 0]
+                        return agg.value()
+
+                    keys.sort (a,b) => naturalSort(_getVal(a), _getVal(b)) * (if isDesc then -1 else 1)
+
+                switch sortOrder
+                    #Legacy sorts.
+                    when "value_a_to_z" then _sortByAggVal([])
+                    when "value_z_to_a" then _sortByAggVal([], true)
+                    when "key_a_to_z" then keys.sort @arrSort(attrs)
+                    else
+                        sortParts = sortOrder.split("_")
+                        sortType = sortParts[0]
+
+                        switch sortType
+                            when "attr"
+                                attrsOrder = sortParts.slice(1)
+                                keys.sort @arrSort(attrs, attrsOrder)
+                            else
+                                sortVal = sortParts[1]
+
+                                #Check for descending sort.
+                                isDesc = false
+                                if sortVal.startsWith("-")
+                                    sortVal = sortVal.slice(1)
+                                    isDesc = true
+
+                                if sortType == "key"
+                                    key = sortVal.split(String.fromCharCode(0))
+                                    _sortByAggVal(key, isDesc)
+                                else  # sortType == "totals"
+                                    aggIdx = parseInt(sortVal)
+                                    _sortByAggVal([], isDesc, aggIdx)
 
         getColKeys: () =>
             @sortKeys()
@@ -393,7 +493,21 @@ callWithJQuery ($) ->
             @sortKeys()
             return @rowKeys
 
-        processRecord: (record) -> #this code is called in a tight loop
+        #Generate keys for the record, and update all corresponding aggregators
+        #(i.e., the grand total, row/col total, and normal row+col aggregators).
+        #:aggIdx: In multi-metrics mode, index into the @aggregator array.
+        processRecord: (record, aggIdx) -> #this code is called in a tight loop
+
+            #In multi-metric mode, process record once per aggregator.
+            if $.isArray(@aggregator) and not aggIdx?
+                for agg, aggIdx in @aggregator
+                    record[@multiAggAttr] = aggIdx
+                    @processRecord(record, aggIdx)
+                delete record[@multiAggAttr]  # leave records unmodified
+                return
+
+            aggregator = if aggIdx? then @aggregator[aggIdx] else @aggregator
+
             colKey = []
             rowKey = []
             colKey.push record[x] ? @emptyValue for x in @colAttrs
@@ -401,27 +515,41 @@ callWithJQuery ($) ->
             flatRowKey = rowKey.join(String.fromCharCode(0))
             flatColKey = colKey.join(String.fromCharCode(0))
 
-            @allTotal.push record
+            #Grand total cell.
+            allTotal = if aggIdx? then @allTotal[aggIdx] else @allTotal
+            allTotal.push record
 
-            if rowKey.length != 0
-                if not @rowTotals[flatRowKey]
-                    @rowKeys.push rowKey
-                    @rowTotals[flatRowKey] = @aggregator(this, rowKey, [])
-                @rowTotals[flatRowKey].push record
+            getTotalsAgg = (rowOrCol, key) =>  #fat arrow to get closure over PivotData object `this`
+                r = if rowOrCol == "row" then key else []
+                c = if rowOrCol == "row" then [] else key
+                return aggregator(this, r, c)
 
-            if colKey.length != 0
-                if not @colTotals[flatColKey]
-                    @colKeys.push colKey
-                    @colTotals[flatColKey] = @aggregator(this, [], colKey)
-                @colTotals[flatColKey].push record
+            for [rowOrCol, attrs, keys, rawKey, flatKey, totals] in [
+              ["row", @colAttrs, @rowKeys, rowKey, flatRowKey, @rowTotals],
+              ["col", @rowAttrs, @colKeys, colKey, flatColKey, @colTotals]
+            ]
+                isMultiTotals = aggIdx? and @multiAggAttr in attrs
+                if rawKey.length != 0
+                    #First time we've seen this key: create totals aggregator.
+                    if not totals[flatKey]
+                        keys.push rawKey
+                        totals[flatKey] = if isMultiTotals then [] else getTotalsAgg(rowOrCol, rawKey)
+                    if isMultiTotals and not totals[flatKey][aggIdx]
+                        totals[flatKey][aggIdx] = getTotalsAgg(rowOrCol, rawKey)
+                    #Push record to the totals aggregator.
+                    totalsAgg = totals[flatKey]
+                    if isMultiTotals
+                        totalsAgg = totalsAgg[aggIdx]
+                    totalsAgg.push record
 
             if colKey.length != 0 and rowKey.length != 0
                 if not @tree[flatRowKey]
                     @tree[flatRowKey] = {}
                 if not @tree[flatRowKey][flatColKey]
-                    @tree[flatRowKey][flatColKey] = @aggregator(this, rowKey, colKey)
+                    @tree[flatRowKey][flatColKey] = aggregator(this, rowKey, colKey)
                 @tree[flatRowKey][flatColKey].push record
 
+        #In multi-metric mode, totals aggregators are arrays.
         getAggregator: (rowKey, colKey) =>
             flatRowKey = rowKey.join(String.fromCharCode(0))
             flatColKey = colKey.join(String.fromCharCode(0))
@@ -433,7 +561,8 @@ callWithJQuery ($) ->
                 agg = @rowTotals[flatRowKey]
             else
                 agg = @tree[flatRowKey][flatColKey]
-            return agg ? {value: (-> null), format: -> ""}
+            #In multi-metric mode, don't bother creating default aggregators.
+            return if $.isArray(agg) then agg else (agg ? {value: (-> null), format: -> ""})
 
     #expose these to the outside world
     $.pivotUtilities = {aggregatorTemplates, aggregators, renderers, derivers, locales,
@@ -457,80 +586,126 @@ callWithJQuery ($) ->
         colKeys = pivotData.getColKeys()
 
         if opts.table.clickCallback
-            getClickHandler = (value, rowValues, colValues) ->
+            getClickHandler = (value, rowKey, colKey) ->
                 filters = {}
-                filters[attr] = colValues[i] for attr, i in colAttrs when colValues[i]?
-                filters[attr] = rowValues[i] for attr, i in rowAttrs when rowValues[i]?
+                filters[attr] = colKey[i] for attr, i in colAttrs when colKey[i]?
+                filters[attr] = rowKey[i] for attr, i in rowAttrs when rowKey[i]?
                 return (e) -> opts.table.clickCallback(e, value, filters, pivotData)
+
+        if opts.table.headerClickCallback
+            getHeaderClickHandler = (rowOrCol, type, val) ->
+                return (e) -> opts.table.headerClickCallback(e, rowOrCol, type, val)
 
         #now actually build the output
         result = document.createElement("table")
         result.className = "pvtTable"
 
-        #helper function for setting row/col-span in pivotTableRenderer
-        spanSize = (arr, i, j) ->
-            if i != 0
+        #helper function for setting row/col span size for all cells
+        spanSize = (keys, keyIdx, maxAttrIdx) ->
+            #check if cell should be drawn (e.g., if an attr is coarser than the next one, we only draw that attr cell once)
+            if keyIdx != 0
                 noDraw = true
-                for x in [0..j]
-                    if arr[i-1][x] != arr[i][x]
+                for attrIdx in [0..maxAttrIdx]
+                    if keys[keyIdx-1][attrIdx] != keys[keyIdx][attrIdx]
                         noDraw = false
                 if noDraw
                   return -1 #do not draw cell
+            #calculate span
             len = 0
-            while i+len < arr.length
+            while keyIdx+len < keys.length
                 stop = false
-                for x in [0..j]
-                    stop = true if arr[i][x] != arr[i+len][x]
+                for attrIdx in [0..maxAttrIdx]
+                    stop = true if keys[keyIdx][attrIdx] != keys[keyIdx+len][attrIdx]
                 break if stop
                 len++
             return len
 
         #the first few rows are for col headers
         thead = document.createElement("thead")
-        for c, j in colAttrs
+        for colAttr, colAttrIdx in colAttrs
             tr = document.createElement("tr")
-            if parseInt(j) == 0 and rowAttrs.length != 0
+
+            #create empty upper-left cell spanning both row and col attrs
+            if parseInt(colAttrIdx) == 0 and rowAttrs.length != 0
                 th = document.createElement("th")
                 th.setAttribute("colspan", rowAttrs.length)
                 th.setAttribute("rowspan", colAttrs.length)
                 tr.appendChild th
+
+            #create cell for this col attr
             th = document.createElement("th")
             th.className = "pvtAxisLabel"
-            th.textContent = c
+            th.textContent = colAttr
+            if getHeaderClickHandler?
+                th.onclick = getHeaderClickHandler("col", "attr", colAttr)
             tr.appendChild th
-            for colKey, i in colKeys
-                x = spanSize(colKeys, parseInt(i), parseInt(j))
+
+            # create cell for each col key (of this attribute)
+            for colKey, colKeyIdx in colKeys
+                x = spanSize(colKeys, parseInt(colKeyIdx), parseInt(colAttrIdx))
                 if x != -1
                     th = document.createElement("th")
                     th.className = "pvtColLabel"
                     if opts.formatHeader
-                        th.textContent = opts.formatHeader(colKey[j], colAttrs[j]);
+                        th.textContent = opts.formatHeader(colKey[colAttrIdx], colAttrs[colAttrIdx]);
                     else
-                        th.textContent = colKey[j]
+                        th.textContent = colKey[colAttrIdx]
                     th.setAttribute("colspan", x)
-                    if parseInt(j) == colAttrs.length-1 and rowAttrs.length != 0
+
+                    #Only allow clicking on the finest-grained attribute.
+                    if getHeaderClickHandler? and colAttrIdx == (colAttrs.length - 1)
+                        flatColKey = colKey.join(String.fromCharCode(0))
+                        th.onclick = getHeaderClickHandler("col", "key", flatColKey)
+                        #Add key to data-set for post-processing sort icons. CSS selectors
+                        #don't work w/code point 0, but we don't need the separators anyway.
+                        th.dataset.flatKey = colKey.join("")
+
+                    #if this is the last col attr, each col key spans 2 rows (the 2nd being the row attr row)
+                    if parseInt(colAttrIdx) == colAttrs.length-1 and rowAttrs.length != 0
                         th.setAttribute("rowspan", 2)
+
                     tr.appendChild th
-            if parseInt(j) == 0
-                th = document.createElement("th")
-                th.className = "pvtTotalLabel pvtRowTotalLabel"
-                th.innerHTML = opts.localeStrings.totals
-                th.setAttribute("rowspan", colAttrs.length + (if rowAttrs.length ==0 then 0 else 1))
-                tr.appendChild th
+
+            # create row totals column header
+            if parseInt(colAttrIdx) == 0
+                createHeader = (aggIdx) ->
+                    th = document.createElement("th")
+                    th.className = "pvtTotalLabel pvtRowTotalLabel"
+                    th.innerHTML = opts.localeStrings.totals
+                    if aggIdx?
+                        th.dataset.aggIdx = aggIdx
+                    th.setAttribute("rowspan", colAttrs.length + (if rowAttrs.length ==0 then 0 else 1))
+                    if getHeaderClickHandler?
+                        th.onclick = getHeaderClickHandler("col", "totals", aggIdx or 0)
+                    tr.appendChild th
+
+                #In multi-metric mode, if "Metrics" attr is a col, there is one row totals col per aggregator.
+                if $.isArray(pivotData.aggregator) and pivotData.multiAggAttr in colAttrs
+                    for agg, aggIdx in pivotData.aggregator
+                        createHeader(aggIdx)
+                else
+                    createHeader()
+
             thead.appendChild tr
 
-        #then a row for row header headers
+        #then a single row for all row attrs
         if rowAttrs.length !=0
             tr = document.createElement("tr")
-            for r, i in rowAttrs
+            for rowAttr, i in rowAttrs
                 th = document.createElement("th")
                 th.className = "pvtAxisLabel"
-                th.textContent = r
+                th.textContent = rowAttr
+                if getHeaderClickHandler?
+                    th.onclick = getHeaderClickHandler("row", "attr", rowAttr)
                 tr.appendChild th
-            th = document.createElement("th")
+            th = document.createElement("th")  #empty cell below col attr cells
             if colAttrs.length ==0
+                #use empty cell for the row totals if there are no col attrs
                 th.className = "pvtTotalLabel pvtRowTotalLabel"
                 th.innerHTML = opts.localeStrings.totals
+                if getHeaderClickHandler?
+                    #there is only one col totals aggregator
+                    th.onclick = getHeaderClickHandler("col", "totals", 0)
             tr.appendChild th
             thead.appendChild tr
 
@@ -538,73 +713,130 @@ callWithJQuery ($) ->
 
         #now the actual data rows, with their row headers and totals
         tbody = document.createElement("tbody")
-        for rowKey, i in rowKeys
+        for rowKey, rowKeyIdx in rowKeys
             tr = document.createElement("tr")
-            for own j, txt of rowKey
-                x = spanSize(rowKeys, parseInt(i), parseInt(j))
+
+            #create a header cell for each row attr
+            for own rowAttrIdx, txt of rowKey
+                x = spanSize(rowKeys, parseInt(rowKeyIdx), parseInt(rowAttrIdx))
                 if x != -1
                     th = document.createElement("th")
                     th.className = "pvtRowLabel"
-                    # console.log(txt, i, rowAttrs);
                     if opts.formatHeader
-                        th.textContent = opts.formatHeader(txt, rowAttrs[j]);
+                        th.textContent = opts.formatHeader(txt, rowAttrs[rowAttrIdx]);
                     else
                         th.textContent = txt
                     th.setAttribute("rowspan", x)
-                    if parseInt(j) == rowAttrs.length-1 and colAttrs.length !=0
+
+                    #if this is the last row attr, the header cell spans 2 cols (the 2nd being the col attr col)
+                    if parseInt(rowAttrIdx) == rowAttrs.length-1 and colAttrs.length !=0
                         th.setAttribute("colspan",2)
+
+                    if getHeaderClickHandler? and parseInt(rowAttrIdx) == rowAttrs.length-1
+                        flatRowKey = rowKey.join(String.fromCharCode(0))
+                        th.onclick = getHeaderClickHandler("row", "key", flatRowKey)
+                        #Add key to data-set for post-processing sort icons. CSS selectors
+                        #don't work w/code point 0, but we don't need the separators anyway.
+                        th.dataset.flatKey = rowKey.join("")
+
                     tr.appendChild th
-            for colKey, j in colKeys #this is the tight loop
+
+            #create a value cell for each col key
+            for colKey, colKeyIdx in colKeys #this is the tight loop
                 aggregator = pivotData.getAggregator(rowKey, colKey)
                 val = aggregator.value()
                 td = document.createElement("td")
-                td.className = "pvtVal row#{i} col#{j}"
+                td.className = "pvtVal row#{rowKeyIdx} col#{colKeyIdx}"
                 td.textContent = aggregator.format(val)
                 td.setAttribute("data-value", val)
                 if getClickHandler?
                     td.onclick = getClickHandler(val, rowKey, colKey)
                 tr.appendChild td
 
+            #create rightmost row totals cell/s
+            createTotalsCell = (totalAggregator) ->
+                val = totalAggregator.value()
+                td = document.createElement("td")
+                td.className = "pvtTotal rowTotal"
+                td.textContent = totalAggregator.format(val)
+                td.setAttribute("data-value", val)
+                if getClickHandler?
+                    td.onclick = getClickHandler(val, rowKey, [])
+                td.setAttribute("data-for", "row"+rowKeyIdx)
+                tr.appendChild td
             totalAggregator = pivotData.getAggregator(rowKey, [])
-            val = totalAggregator.value()
-            td = document.createElement("td")
-            td.className = "pvtTotal rowTotal"
-            td.textContent = totalAggregator.format(val)
-            td.setAttribute("data-value", val)
-            if getClickHandler?
-                td.onclick = getClickHandler(val, rowKey, [])
-            td.setAttribute("data-for", "row"+i)
-            tr.appendChild td
+            #Multi-metric mode: one totals cell per aggregator.
+            if $.isArray(totalAggregator)
+                for agg in totalAggregator
+                    createTotalsCell(agg)
+            else
+                createTotalsCell(totalAggregator)
+
             tbody.appendChild tr
 
-        #finally, the row for col totals, and a grand total
-        tr = document.createElement("tr")
-        th = document.createElement("th")
-        th.className = "pvtTotalLabel pvtColTotalLabel"
-        th.innerHTML = opts.localeStrings.totals
-        th.setAttribute("colspan", rowAttrs.length + (if colAttrs.length == 0 then 0 else 1))
-        tr.appendChild th
-        for colKey, j in colKeys
-            totalAggregator = pivotData.getAggregator([], colKey)
-            val = totalAggregator.value()
-            td = document.createElement("td")
-            td.className = "pvtTotal colTotal"
-            td.textContent = totalAggregator.format(val)
-            td.setAttribute("data-value", val)
-            if getClickHandler?
-                td.onclick = getClickHandler(val, [], colKey)
-            td.setAttribute("data-for", "col"+j)
-            tr.appendChild td
-        totalAggregator = pivotData.getAggregator([], [])
-        val = totalAggregator.value()
-        td = document.createElement("td")
-        td.className = "pvtGrandTotal"
-        td.textContent = totalAggregator.format(val)
-        td.setAttribute("data-value", val)
-        if getClickHandler?
-            td.onclick = getClickHandler(val, [], [])
-        tr.appendChild td
-        tbody.appendChild tr
+        #finally, the row for col totals (which includes a grand total cell in the bottom-right)
+        createTotalsRow = (aggIdx) ->
+            tr = document.createElement("tr")
+
+            #left-most header cell
+            th = document.createElement("th")
+            th.className = "pvtTotalLabel pvtColTotalLabel"
+            th.innerHTML = opts.localeStrings.totals
+            if aggIdx?
+                th.dataset.aggIdx = aggIdx
+            th.setAttribute("colspan", rowAttrs.length + (if colAttrs.length == 0 then 0 else 1))
+            if getHeaderClickHandler?
+                th.onclick = getHeaderClickHandler("row", "totals", aggIdx or 0)
+            tr.appendChild th
+
+            #value cells, one per col key
+            for colKey, colKeyIdx in colKeys
+                totalAggregator = pivotData.getAggregator([], colKey)
+                if aggIdx?
+                    totalAggregator = totalAggregator[aggIdx]
+                val = totalAggregator.value()
+                td = document.createElement("td")
+                td.className = "pvtTotal colTotal"
+                td.textContent = totalAggregator.format(val)
+                td.setAttribute("data-value", val)
+                if getClickHandler?
+                    td.onclick = getClickHandler(val, [], colKey)
+                td.setAttribute("data-for", "col"+colKeyIdx)
+                tr.appendChild td
+
+            #right-most grand total cell
+            createGrandTotalCell = (totalAggregator) ->
+                val = totalAggregator.value()
+                td = document.createElement("td")
+                td.className = "pvtGrandTotal"
+                td.textContent = totalAggregator.format(val)
+                td.setAttribute("data-value", val)
+                if getClickHandler?
+                    td.onclick = getClickHandler(val, [], [])
+                tr.appendChild td
+
+            #This is an array in multi-metrics mode.
+            totalAggregator = pivotData.getAggregator([], [])
+            if not $.isArray(totalAggregator)
+                createGrandTotalCell(totalAggregator)
+            #Multi-metrics mode, "metrics" attr in rows: each grand total cell is created per createTotalsRow() call.
+            else if aggIdx?
+                createGrandTotalCell(totalAggregator[aggIdx])
+            #Multi-metrics mode, "metrics" attr in cols, only one totals row: one grand total cell per aggregator.
+            else
+                for agg in totalAggregator
+                    createGrandTotalCell(agg)
+
+            tbody.appendChild tr
+
+        #In multi-metric mode, if the "Metrics" attr is a row, there is one
+        #col totals row per aggregator.
+        if $.isArray(pivotData.aggregator) and pivotData.multiAggAttr in rowAttrs
+            for agg, aggIdx in pivotData.aggregator
+                createTotalsRow(aggIdx)
+        else
+            createTotalsRow()
+
         result.appendChild tbody
 
         #squirrel this away for later

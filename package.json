@@ -1,6 +1,6 @@
 {
   "name": "pivottable",
-  "version": "2.18.2",
+  "version": "2.18.3",
   "description": "Javascript Pivot Table (aka Pivot Grid, Pivot Chart, Cross-Tab) implementation with drag'n'drop",
   "main": "dist/pivot.js",
   "files": [
@@ -39,7 +39,6 @@
     "gulp": "^3.8.10",
     "run-sequence": "^1.0.2",
     "gulp-tag-version": "^1.2.1",
-    "gulp-git": "^0.5.5",
     "gulp-bump": "^0.1.11",
     "gulp-filter": "^1.0.2",
     "gulp-util": "^3.0.1",
