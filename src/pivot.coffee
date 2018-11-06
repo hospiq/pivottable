@@ -132,12 +132,19 @@ callWithJQuery ($) ->
             format: formatter
             numInputs: if num? and denom? then 0 else 2
 
-        fractionOf: (wrapped, type="total", formatter=usFmtPct) -> (x...) -> (data, rowKey, colKey) ->
+        #To support multi-metrics mode, these aggregator factories must be
+        #instantiated with the aggregator index, so that value() knows how
+        # to find the corresponding fractionOf aggregator for the denominator.
+        fractionOf: (wrapped, type="total", formatter=usFmtPct) -> (aggIdx, x...) -> (data, rowKey, colKey) ->
             selector: {total:[[],[]],row:[rowKey,[]],col:[[],colKey]}[type]
             inner: wrapped(x...)(data, rowKey, colKey)
             push: (record) -> @inner.push record
             format: formatter
-            value: -> @inner.value() / data.getAggregator(@selector...).inner.value()
+            value: ->
+                agg = data.getAggregator(@selector...)
+                if $.isArray(agg)
+                    agg = agg[aggIdx]
+                return @inner.value() / agg.inner.value()
             numInputs: wrapped(x...)().numInputs
 
     aggregatorTemplates.countUnique = (f) -> aggregatorTemplates.uniques(((x) -> x.length), f)

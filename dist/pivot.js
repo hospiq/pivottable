@@ -337,8 +337,8 @@
           formatter = usFmtPct;
         }
         return function() {
-          var x;
-          x = 1 <= arguments.length ? slice.call(arguments, 0) : [];
+          var aggIdx, x;
+          aggIdx = arguments[0], x = 2 <= arguments.length ? slice.call(arguments, 1) : [];
           return function(data, rowKey, colKey) {
             return {
               selector: {
@@ -352,7 +352,12 @@
               },
               format: formatter,
               value: function() {
-                return this.inner.value() / data.getAggregator.apply(data, this.selector).inner.value();
+                var agg;
+                agg = data.getAggregator.apply(data, this.selector);
+                if ($.isArray(agg)) {
+                  agg = agg[aggIdx];
+                }
+                return this.inner.value() / agg.inner.value();
               },
               numInputs: wrapped.apply(null, x)().numInputs
             };
