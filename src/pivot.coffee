@@ -681,8 +681,10 @@ callWithJQuery ($) ->
 
                 #In multi-metric mode, if "Metrics" attr is a col, there is one row totals col per aggregator.
                 if $.isArray(pivotData.aggregator) and pivotData.multiAggAttr in colAttrs
-                    for agg, aggIdx in pivotData.aggregator
-                        createHeader(aggIdx)
+                    #Skip row totals if "Metrics" is the only col attr: the totals are redundant.
+                    if colAttrs.length > 1
+                        for agg, aggIdx in pivotData.aggregator
+                            createHeader(aggIdx)
                 else
                     createHeader()
 
@@ -767,8 +769,10 @@ callWithJQuery ($) ->
             totalAggregator = pivotData.getAggregator(rowKey, [])
             #Multi-metric mode: one totals cell per aggregator.
             if $.isArray(totalAggregator)
-                for agg in totalAggregator
-                    createTotalsCell(agg)
+                #Skip col totals if "Metrics" is the only row attr: the totals are redundant.
+                if rowAttrs.length > 1
+                    for agg in totalAggregator
+                        createTotalsCell(agg)
             else
                 createTotalsCell(totalAggregator)
 
@@ -824,16 +828,20 @@ callWithJQuery ($) ->
                 createGrandTotalCell(totalAggregator[aggIdx])
             #Multi-metrics mode, "metrics" attr in cols, only one totals row: one grand total cell per aggregator.
             else
-                for agg in totalAggregator
-                    createGrandTotalCell(agg)
+                #Skip row totals if "Metrics" is the only col attr: totals are redundant.
+                if colAttrs.length > 1
+                    for agg in totalAggregator
+                        createGrandTotalCell(agg)
 
             tbody.appendChild tr
 
         #In multi-metric mode, if the "Metrics" attr is a row, there is one
         #col totals row per aggregator.
         if $.isArray(pivotData.aggregator) and pivotData.multiAggAttr in rowAttrs
-            for agg, aggIdx in pivotData.aggregator
-                createTotalsRow(aggIdx)
+            #Skip col totals if "Metrics" is the only row attr: the totals are redundant.
+            if rowAttrs.length > 1
+                for agg, aggIdx in pivotData.aggregator
+                    createTotalsRow(aggIdx)
         else
             createTotalsRow()
 

@@ -1108,10 +1108,12 @@
             return tr.appendChild(th);
           };
           if ($.isArray(pivotData.aggregator) && (ref = pivotData.multiAggAttr, indexOf.call(colAttrs, ref) >= 0)) {
-            ref1 = pivotData.aggregator;
-            for (aggIdx = o = 0, len3 = ref1.length; o < len3; aggIdx = ++o) {
-              agg = ref1[aggIdx];
-              createHeader(aggIdx);
+            if (colAttrs.length > 1) {
+              ref1 = pivotData.aggregator;
+              for (aggIdx = o = 0, len3 = ref1.length; o < len3; aggIdx = ++o) {
+                agg = ref1[aggIdx];
+                createHeader(aggIdx);
+              }
             }
           } else {
             createHeader();
@@ -1198,9 +1200,11 @@
         };
         totalAggregator = pivotData.getAggregator(rowKey, []);
         if ($.isArray(totalAggregator)) {
-          for (y = 0, len7 = totalAggregator.length; y < len7; y++) {
-            agg = totalAggregator[y];
-            createTotalsCell(agg);
+          if (rowAttrs.length > 1) {
+            for (y = 0, len7 = totalAggregator.length; y < len7; y++) {
+              agg = totalAggregator[y];
+              createTotalsCell(agg);
+            }
           }
         } else {
           createTotalsCell(totalAggregator);
@@ -1255,18 +1259,22 @@
         } else if (aggIdx != null) {
           createGrandTotalCell(totalAggregator[aggIdx]);
         } else {
-          for (i1 = 0, len9 = totalAggregator.length; i1 < len9; i1++) {
-            agg = totalAggregator[i1];
-            createGrandTotalCell(agg);
+          if (colAttrs.length > 1) {
+            for (i1 = 0, len9 = totalAggregator.length; i1 < len9; i1++) {
+              agg = totalAggregator[i1];
+              createGrandTotalCell(agg);
+            }
           }
         }
         return tbody.appendChild(tr);
       };
       if ($.isArray(pivotData.aggregator) && (ref2 = pivotData.multiAggAttr, indexOf.call(rowAttrs, ref2) >= 0)) {
-        ref3 = pivotData.aggregator;
-        for (aggIdx = z = 0, len8 = ref3.length; z < len8; aggIdx = ++z) {
-          agg = ref3[aggIdx];
-          createTotalsRow(aggIdx);
+        if (rowAttrs.length > 1) {
+          ref3 = pivotData.aggregator;
+          for (aggIdx = z = 0, len8 = ref3.length; z < len8; aggIdx = ++z) {
+            agg = ref3[aggIdx];
+            createTotalsRow(aggIdx);
+          }
         }
       } else {
         createTotalsRow();
