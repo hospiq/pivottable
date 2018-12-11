@@ -828,8 +828,8 @@ callWithJQuery ($) ->
                 createGrandTotalCell(totalAggregator[aggIdx])
             #Multi-metrics mode, "metrics" attr in cols, only one totals row: one grand total cell per aggregator.
             else
-                #Skip col totals if "Metrics" is the only row attr: totals are redundant.
-                if rowAttrs.length > 1
+                #Skip row totals if "Metrics" is the only col attr: totals are redundant.
+                if colAttrs.length > 1
                     for agg in totalAggregator
                         createGrandTotalCell(agg)
 

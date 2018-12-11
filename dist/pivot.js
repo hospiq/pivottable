@@ -1259,7 +1259,7 @@
         } else if (aggIdx != null) {
           createGrandTotalCell(totalAggregator[aggIdx]);
         } else {
-          if (rowAttrs.length > 1) {
+          if (colAttrs.length > 1) {
             for (i1 = 0, len9 = totalAggregator.length; i1 < len9; i1++) {
               agg = totalAggregator[i1];
               createGrandTotalCell(agg);
