@@ -1200,7 +1200,7 @@
         };
         totalAggregator = pivotData.getAggregator(rowKey, []);
         if ($.isArray(totalAggregator)) {
-          if (rowAttrs.length > 1) {
+          if (colAttrs.length > 1) {
             for (y = 0, len7 = totalAggregator.length; y < len7; y++) {
               agg = totalAggregator[y];
               createTotalsCell(agg);
@@ -1259,7 +1259,7 @@
         } else if (aggIdx != null) {
           createGrandTotalCell(totalAggregator[aggIdx]);
         } else {
-          if (colAttrs.length > 1) {
+          if (rowAttrs.length > 1) {
             for (i1 = 0, len9 = totalAggregator.length; i1 < len9; i1++) {
               agg = totalAggregator[i1];
               createGrandTotalCell(agg);
