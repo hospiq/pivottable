@@ -883,9 +883,11 @@ callWithJQuery ($) ->
             try
                 result = opts.renderer(pivotData, opts.rendererOptions)
             catch e
+                @trigger('error', e)
                 console.error(e.stack) if console?
                 result = $("<span>").html opts.localeStrings.renderError
         catch e
+            @trigger('error', e)
             console.error(e.stack) if console?
             result = $("<span>").html opts.localeStrings.computeError
 
@@ -1281,6 +1283,7 @@ callWithJQuery ($) ->
                     items: 'li'
                     placeholder: 'pvtPlaceholder'
         catch e
+            $(this).trigger('error', e)
             console.error(e.stack) if console?
             @html opts.localeStrings.uiRenderError
         return this
