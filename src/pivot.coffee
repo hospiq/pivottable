@@ -658,7 +658,7 @@ callWithJQuery ($) ->
                         th.onclick = getHeaderClickHandler("col", "key", flatColKey)
                         #Add key to data-set for post-processing sort icons. CSS selectors
                         #don't work w/code point 0, but we don't need the separators anyway.
-                        th.dataset.flatKey = colKey.join("")
+                        th.setAttribute("data-flat-key", colKey.join(""))
 
                     #if this is the last col attr, each col key spans 2 rows (the 2nd being the row attr row)
                     if parseInt(colAttrIdx) == colAttrs.length-1 and rowAttrs.length != 0
@@ -673,7 +673,7 @@ callWithJQuery ($) ->
                     th.className = "pvtTotalLabel pvtRowTotalLabel"
                     th.innerHTML = opts.localeStrings.totals
                     if aggIdx?
-                        th.dataset.aggIdx = aggIdx
+                        th.setAttribute("data-agg-idx", aggIdx)
                     th.setAttribute("rowspan", colAttrs.length + (if rowAttrs.length ==0 then 0 else 1))
                     if getHeaderClickHandler?
                         th.onclick = getHeaderClickHandler("col", "totals", aggIdx or 0)
@@ -739,7 +739,7 @@ callWithJQuery ($) ->
                         th.onclick = getHeaderClickHandler("row", "key", flatRowKey)
                         #Add key to data-set for post-processing sort icons. CSS selectors
                         #don't work w/code point 0, but we don't need the separators anyway.
-                        th.dataset.flatKey = rowKey.join("")
+                        th.setAttribute("data-flat-key", rowKey.join(""))
 
                     tr.appendChild th
 
@@ -787,7 +787,7 @@ callWithJQuery ($) ->
             th.className = "pvtTotalLabel pvtColTotalLabel"
             th.innerHTML = opts.localeStrings.totals
             if aggIdx?
-                th.dataset.aggIdx = aggIdx
+                th.setAttribute("data-agg-idx", aggIdx)
             th.setAttribute("colspan", rowAttrs.length + (if colAttrs.length == 0 then 0 else 1))
             if getHeaderClickHandler?
                 th.onclick = getHeaderClickHandler("row", "totals", aggIdx or 0)

@@ -1085,7 +1085,7 @@
             if ((getHeaderClickHandler != null) && colAttrIdx === (colAttrs.length - 1)) {
               flatColKey = colKey.join(String.fromCharCode(0));
               th.onclick = getHeaderClickHandler("col", "key", flatColKey);
-              th.dataset.flatKey = colKey.join("");
+              th.setAttribute("data-flat-key", colKey.join(""));
             }
             if (parseInt(colAttrIdx) === colAttrs.length - 1 && rowAttrs.length !== 0) {
               th.setAttribute("rowspan", 2);
@@ -1099,7 +1099,7 @@
             th.className = "pvtTotalLabel pvtRowTotalLabel";
             th.innerHTML = opts.localeStrings.totals;
             if (aggIdx != null) {
-              th.dataset.aggIdx = aggIdx;
+              th.setAttribute("data-agg-idx", aggIdx);
             }
             th.setAttribute("rowspan", colAttrs.length + (rowAttrs.length === 0 ? 0 : 1));
             if (getHeaderClickHandler != null) {
@@ -1168,7 +1168,7 @@
             if ((getHeaderClickHandler != null) && parseInt(rowAttrIdx) === rowAttrs.length - 1) {
               flatRowKey = rowKey.join(String.fromCharCode(0));
               th.onclick = getHeaderClickHandler("row", "key", flatRowKey);
-              th.dataset.flatKey = rowKey.join("");
+              th.setAttribute("data-flat-key", rowKey.join(""));
             }
             tr.appendChild(th);
           }
@@ -1218,7 +1218,7 @@
         th.className = "pvtTotalLabel pvtColTotalLabel";
         th.innerHTML = opts.localeStrings.totals;
         if (aggIdx != null) {
-          th.dataset.aggIdx = aggIdx;
+          th.setAttribute("data-agg-idx", aggIdx);
         }
         th.setAttribute("colspan", rowAttrs.length + (colAttrs.length === 0 ? 0 : 1));
         if (getHeaderClickHandler != null) {
