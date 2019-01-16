@@ -486,11 +486,17 @@ callWithJQuery ($) ->
                                     _sortByAggVal([], isDesc, aggIdx)
 
         getColKeys: () =>
-            @sortKeys()
+            try
+                @sortKeys()
+            catch e
+                #Ignore error: use un-sorted keys.
             return @colKeys
 
         getRowKeys: () =>
-            @sortKeys()
+            try
+                @sortKeys()
+            catch e
+                #Ignore error: use un-sorted keys.
             return @rowKeys
 
         #Generate keys for the record, and update all corresponding aggregators
@@ -883,11 +889,11 @@ callWithJQuery ($) ->
             try
                 result = opts.renderer(pivotData, opts.rendererOptions)
             catch e
-                @trigger('error', e)
+                @trigger("pivotTableError", e)
                 console.error(e.stack) if console?
                 result = $("<span>").html opts.localeStrings.renderError
         catch e
-            @trigger('error', e)
+            @trigger("pivotTableError", e)
             console.error(e.stack) if console?
             result = $("<span>").html opts.localeStrings.computeError
 
@@ -1283,7 +1289,7 @@ callWithJQuery ($) ->
                     items: 'li'
                     placeholder: 'pvtPlaceholder'
         catch e
-            $(this).trigger('error', e)
+            @trigger("pivotTableError", e)
             console.error(e.stack) if console?
             @html opts.localeStrings.uiRenderError
         return this

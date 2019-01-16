@@ -858,12 +858,22 @@
       };
 
       PivotData.prototype.getColKeys = function() {
-        this.sortKeys();
+        var e;
+        try {
+          this.sortKeys();
+        } catch (error) {
+          e = error;
+        }
         return this.colKeys;
       };
 
       PivotData.prototype.getRowKeys = function() {
-        this.sortKeys();
+        var e;
+        try {
+          this.sortKeys();
+        } catch (error) {
+          e = error;
+        }
         return this.rowKeys;
       };
 
@@ -1327,7 +1337,7 @@
           result = opts.renderer(pivotData, opts.rendererOptions);
         } catch (error) {
           e = error;
-          this.trigger('error', e);
+          this.trigger("pivotTableError", e);
           if (typeof console !== "undefined" && console !== null) {
             console.error(e.stack);
           }
@@ -1335,7 +1345,7 @@
         }
       } catch (error) {
         e = error;
-        this.trigger('error', e);
+        this.trigger("pivotTableError", e);
         if (typeof console !== "undefined" && console !== null) {
           console.error(e.stack);
         }
@@ -1835,7 +1845,7 @@
         });
       } catch (error) {
         e = error;
-        $(this).trigger('error', e);
+        this.trigger("pivotTableError", e);
         if (typeof console !== "undefined" && console !== null) {
           console.error(e.stack);
         }
