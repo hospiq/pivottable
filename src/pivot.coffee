@@ -885,7 +885,7 @@ callWithJQuery ($) ->
 
         result = null
         try
-            pivotData = new opts.dataClass(input, opts)
+            pivotData = if input instanceof opts.dataClass then input else new opts.dataClass(input, opts)
             try
                 result = opts.renderer(pivotData, opts.rendererOptions)
             catch e

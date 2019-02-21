@@ -1332,7 +1332,7 @@
       opts = $.extend(true, {}, localeDefaults, $.extend({}, defaults, inputOpts));
       result = null;
       try {
-        pivotData = new opts.dataClass(input, opts);
+        pivotData = input instanceof opts.dataClass ? input : new opts.dataClass(input, opts);
         try {
           result = opts.renderer(pivotData, opts.rendererOptions);
         } catch (error) {
