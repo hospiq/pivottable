@@ -20,7 +20,7 @@
     /*
     Utilities
      */
-    var PivotData, addSeparators, aggregatorTemplates, aggregators, dayNamesEn, derivers, getSort, locales, mthNamesEn, naturalSort, numberFormat, pivotTableRenderer, rd, renderers, rx, rz, sortAs, usFmt, usFmtInt, usFmtPct, zeroPad;
+    var FLAT_KEY_DELIM, PivotData, addSeparators, aggregatorTemplates, aggregators, dayNamesEn, derivers, getSort, locales, mthNamesEn, naturalSort, numberFormat, pivotTableRenderer, rd, renderers, rx, rz, sortAs, usFmt, usFmtInt, usFmtPct, zeroPad;
     addSeparators = function(nStr, thousandsSep, decimalSep) {
       var rgx, x, x1, x2;
       nStr += '';
@@ -632,6 +632,7 @@
     /*
     Data Model class
      */
+    FLAT_KEY_DELIM = '\u0001';
     PivotData = (function() {
       function PivotData(input, opts) {
         var ref, ref1, ref10, ref11, ref12, ref13, ref2, ref3, ref4, ref5, ref6, ref7, ref8, ref9;
@@ -845,7 +846,7 @@
                     isDesc = true;
                   }
                   if (sortType === "key") {
-                    key = sortVal.split(String.fromCharCode(0));
+                    key = sortVal.split(FLAT_KEY_DELIM);
                     results.push(_sortByAggVal(key, isDesc));
                   } else {
                     aggIdx = parseInt(sortVal);
@@ -902,8 +903,8 @@
           x = ref3[o];
           rowKey.push((ref4 = record[x]) != null ? ref4 : this.emptyValue);
         }
-        flatRowKey = rowKey.join(String.fromCharCode(0));
-        flatColKey = colKey.join(String.fromCharCode(0));
+        flatRowKey = rowKey.join(FLAT_KEY_DELIM);
+        flatColKey = colKey.join(FLAT_KEY_DELIM);
         allTotal = aggIdx != null ? this.allTotal[aggIdx] : this.allTotal;
         allTotal.push(record);
         getTotalsAgg = (function(_this) {
@@ -946,8 +947,8 @@
 
       PivotData.prototype.getAggregator = function(rowKey, colKey) {
         var agg, flatColKey, flatRowKey;
-        flatRowKey = rowKey.join(String.fromCharCode(0));
-        flatColKey = colKey.join(String.fromCharCode(0));
+        flatRowKey = rowKey.join(FLAT_KEY_DELIM);
+        flatColKey = colKey.join(FLAT_KEY_DELIM);
         if (rowKey.length === 0 && colKey.length === 0) {
           agg = this.allTotal;
         } else if (rowKey.length === 0) {
@@ -1093,9 +1094,9 @@
             }
             th.setAttribute("colspan", x);
             if ((getHeaderClickHandler != null) && colAttrIdx === (colAttrs.length - 1)) {
-              flatColKey = colKey.join(String.fromCharCode(0));
+              flatColKey = colKey.join(FLAT_KEY_DELIM);
               th.onclick = getHeaderClickHandler("col", "key", flatColKey);
-              th.setAttribute("data-flat-key", colKey.join(""));
+              th.setAttribute("data-flat-key", flatColKey);
             }
             if (parseInt(colAttrIdx) === colAttrs.length - 1 && rowAttrs.length !== 0) {
               th.setAttribute("rowspan", 2);
@@ -1176,9 +1177,9 @@
               th.setAttribute("colspan", 2);
             }
             if ((getHeaderClickHandler != null) && parseInt(rowAttrIdx) === rowAttrs.length - 1) {
-              flatRowKey = rowKey.join(String.fromCharCode(0));
+              flatRowKey = rowKey.join(FLAT_KEY_DELIM);
               th.onclick = getHeaderClickHandler("row", "key", flatRowKey);
-              th.setAttribute("data-flat-key", rowKey.join(""));
+              th.setAttribute("data-flat-key", flatRowKey);
             }
             tr.appendChild(th);
           }
