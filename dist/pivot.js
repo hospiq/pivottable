@@ -1096,7 +1096,7 @@
             if ((getHeaderClickHandler != null) && colAttrIdx === (colAttrs.length - 1)) {
               flatColKey = colKey.join(FLAT_KEY_DELIM);
               th.onclick = getHeaderClickHandler("col", "key", flatColKey);
-              th.setAttribute("data-flat-key", colKey.join(""));
+              th.setAttribute("data-flat-key", flatColKey);
             }
             if (parseInt(colAttrIdx) === colAttrs.length - 1 && rowAttrs.length !== 0) {
               th.setAttribute("rowspan", 2);
@@ -1179,7 +1179,7 @@
             if ((getHeaderClickHandler != null) && parseInt(rowAttrIdx) === rowAttrs.length - 1) {
               flatRowKey = rowKey.join(FLAT_KEY_DELIM);
               th.onclick = getHeaderClickHandler("row", "key", flatRowKey);
-              th.setAttribute("data-flat-key", rowKey.join(""));
+              th.setAttribute("data-flat-key", flatRowKey);
             }
             tr.appendChild(th);
           }

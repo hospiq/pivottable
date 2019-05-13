@@ -663,9 +663,8 @@ callWithJQuery ($) ->
                     if getHeaderClickHandler? and colAttrIdx == (colAttrs.length - 1)
                         flatColKey = colKey.join(FLAT_KEY_DELIM)
                         th.onclick = getHeaderClickHandler("col", "key", flatColKey)
-                        #Add key to data-set for post-processing sort icons. CSS selectors
-                        #don't work w/code point 0, but we don't need the separators anyway.
-                        th.setAttribute("data-flat-key", colKey.join(""))
+                        #Add key to data-set for post-processing sort icons.
+                        th.setAttribute("data-flat-key", flatColKey)
 
                     #if this is the last col attr, each col key spans 2 rows (the 2nd being the row attr row)
                     if parseInt(colAttrIdx) == colAttrs.length-1 and rowAttrs.length != 0
@@ -744,9 +743,8 @@ callWithJQuery ($) ->
                     if getHeaderClickHandler? and parseInt(rowAttrIdx) == rowAttrs.length-1
                         flatRowKey = rowKey.join(FLAT_KEY_DELIM)
                         th.onclick = getHeaderClickHandler("row", "key", flatRowKey)
-                        #Add key to data-set for post-processing sort icons. CSS selectors
-                        #don't work w/code point 0, but we don't need the separators anyway.
-                        th.setAttribute("data-flat-key", rowKey.join(""))
+                        #Add key to data-set for post-processing sort icons.
+                        th.setAttribute("data-flat-key", flatRowKey)
 
                     tr.appendChild th
 
