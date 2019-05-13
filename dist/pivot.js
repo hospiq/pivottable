@@ -632,7 +632,7 @@
     /*
     Data Model class
      */
-    FLAT_KEY_DELIM = '^^';
+    FLAT_KEY_DELIM = '\u0001';
     PivotData = (function() {
       function PivotData(input, opts) {
         var ref, ref1, ref10, ref11, ref12, ref13, ref2, ref3, ref4, ref5, ref6, ref7, ref8, ref9;

@@ -307,7 +307,7 @@ callWithJQuery ($) ->
     Data Model class
     ###
 
-    FLAT_KEY_DELIM = '^^'
+    FLAT_KEY_DELIM = '\u0001'
     class PivotData
         constructor: (input, opts = {}) ->
             @input = input
