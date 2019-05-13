@@ -307,6 +307,7 @@ callWithJQuery ($) ->
     Data Model class
     ###
 
+    FLAT_KEY_DELIM = '^^'
     class PivotData
         constructor: (input, opts = {}) ->
             @input = input
@@ -422,7 +423,7 @@ callWithJQuery ($) ->
 
         #Sort row and col keys based on @rowOrder and @colOrder. Possible values:
         #  `key_[-]flatKey`: Sort based on the values for the given key, in "flat"
-        #    form (\0-separated string). Optional "-" for descending sort.
+        #    form (FLAT_KEY_DELIM-separated string). Optional "-" for descending sort.
         #  `totals_[-]aggIdx`: Sort based on the totals values. aggIdx is the index
         #    of the aggregator to use (ignored if not multi-metrics mode). Optional
         #    "-" for descending sort.
@@ -479,7 +480,7 @@ callWithJQuery ($) ->
                                     isDesc = true
 
                                 if sortType == "key"
-                                    key = sortVal.split(String.fromCharCode(0))
+                                    key = sortVal.split(FLAT_KEY_DELIM)
                                     _sortByAggVal(key, isDesc)
                                 else  # sortType == "totals"
                                     aggIdx = parseInt(sortVal)
@@ -518,8 +519,8 @@ callWithJQuery ($) ->
             rowKey = []
             colKey.push record[x] ? @emptyValue for x in @colAttrs
             rowKey.push record[x] ? @emptyValue for x in @rowAttrs
-            flatRowKey = rowKey.join(String.fromCharCode(0))
-            flatColKey = colKey.join(String.fromCharCode(0))
+            flatRowKey = rowKey.join(FLAT_KEY_DELIM)
+            flatColKey = colKey.join(FLAT_KEY_DELIM)
 
             #Grand total cell.
             allTotal = if aggIdx? then @allTotal[aggIdx] else @allTotal
@@ -557,8 +558,8 @@ callWithJQuery ($) ->
 
         #In multi-metric mode, totals aggregators are arrays.
         getAggregator: (rowKey, colKey) =>
-            flatRowKey = rowKey.join(String.fromCharCode(0))
-            flatColKey = colKey.join(String.fromCharCode(0))
+            flatRowKey = rowKey.join(FLAT_KEY_DELIM)
+            flatColKey = colKey.join(FLAT_KEY_DELIM)
             if rowKey.length == 0 and colKey.length == 0
                 agg = @allTotal
             else if rowKey.length == 0
@@ -660,7 +661,7 @@ callWithJQuery ($) ->
 
                     #Only allow clicking on the finest-grained attribute.
                     if getHeaderClickHandler? and colAttrIdx == (colAttrs.length - 1)
-                        flatColKey = colKey.join(String.fromCharCode(0))
+                        flatColKey = colKey.join(FLAT_KEY_DELIM)
                         th.onclick = getHeaderClickHandler("col", "key", flatColKey)
                         #Add key to data-set for post-processing sort icons. CSS selectors
                         #don't work w/code point 0, but we don't need the separators anyway.
@@ -741,7 +742,7 @@ callWithJQuery ($) ->
                         th.setAttribute("colspan",2)
 
                     if getHeaderClickHandler? and parseInt(rowAttrIdx) == rowAttrs.length-1
-                        flatRowKey = rowKey.join(String.fromCharCode(0))
+                        flatRowKey = rowKey.join(FLAT_KEY_DELIM)
                         th.onclick = getHeaderClickHandler("row", "key", flatRowKey)
                         #Add key to data-set for post-processing sort icons. CSS selectors
                         #don't work w/code point 0, but we don't need the separators anyway.
