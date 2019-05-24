@@ -46,7 +46,7 @@
       opts = $.extend({}, defaults, opts);
       return function(x) {
         var result;
-        if (isNaN(x) || !isFinite(x)) {
+        if (isNaN(x) || !isFinite(x) || (x == null)) {
           return "";
         }
         result = addSeparators((opts.scaler * x).toFixed(opts.digitsAfterDecimal), opts.thousandsSep, opts.decimalSep);
@@ -116,10 +116,15 @@
           attr = arg[0];
           return function(data, rowKey, colKey) {
             return {
-              sum: 0,
+              sum: null,
               push: function(record) {
-                if (!isNaN(parseFloat(record[attr]))) {
-                  return this.sum += parseFloat(record[attr]);
+                var x;
+                x = parseFloat(record[attr]);
+                if (!isNaN(x)) {
+                  if (this.sum == null) {
+                    this.sum = 0;
+                  }
+                  return this.sum += x;
                 }
               },
               value: function() {
