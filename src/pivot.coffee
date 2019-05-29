@@ -29,7 +29,7 @@ callWithJQuery ($) ->
             prefix: "", suffix: ""
         opts = $.extend({}, defaults, opts)
         (x) ->
-            return "" if isNaN(x) or not isFinite(x)
+            return "" if isNaN(x) or not isFinite(x) or not x?
             result = addSeparators (opts.scaler*x).toFixed(opts.digitsAfterDecimal), opts.thousandsSep, opts.decimalSep
             return ""+opts.prefix+result+opts.suffix
 
@@ -53,8 +53,12 @@ callWithJQuery ($) ->
             numInputs: if attr? then 0 else 1
 
         sum: (formatter=usFmt) -> ([attr]) -> (data, rowKey, colKey) ->
-            sum: 0
-            push: (record) -> @sum += parseFloat(record[attr]) if not isNaN parseFloat(record[attr])
+            sum: null
+            push: (record) ->
+                x = parseFloat(record[attr])
+                if not isNaN x
+                    if not @sum? then @sum = 0
+                    @sum += x
             value: -> @sum
             format: formatter
             numInputs: if attr? then 0 else 1
