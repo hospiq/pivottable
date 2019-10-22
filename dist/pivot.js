@@ -644,6 +644,7 @@
         if (opts == null) {
           opts = {};
         }
+        this.setValueRanges = bind(this.setValueRanges, this);
         this.getAggregator = bind(this.getAggregator, this);
         this.getRowKeys = bind(this.getRowKeys, this);
         this.getColKeys = bind(this.getColKeys, this);
@@ -678,6 +679,7 @@
           };
         })(this));
         this.sorted = false;
+        this.valueRanges = {};
         this.opts = opts;
         PivotData.forEachRecord(input, opts, (function(_this) {
           return function(record) {
@@ -686,6 +688,9 @@
             }
           };
         })(this));
+        if (input != null) {
+          this.setValueRanges;
+        }
       }
 
       PivotData.forEachRecord = function(input, opts, f) {
@@ -975,6 +980,92 @@
             }
           };
         }
+      };
+
+      PivotData.prototype.setValueRanges = function() {
+        var colKey, colKeyIdx, dim, l, len1, len2, len3, len4, n, o, rangeType, ref, ref1, ref2, ref3, results, rowKey, rowKeyIdx, seedRange, t, updateRange, updateTotalAggs, val;
+        seedRange = (function(_this) {
+          return function(rangeType) {
+            var key, keyIdx, keys, l, len1, results, seedDimRange;
+            if (rangeType === "rows" || rangeType === "cols") {
+              _this.valueRanges[rangeType] = {};
+              keys = rangeType === "rows" ? _this.rowKeys : _this.colKeys;
+              seedDimRange = function(keyIdx) {
+                return _this.valueRanges[rangeType][keyIdx] = [2e308, -2e308];
+              };
+              results = [];
+              for (keyIdx = l = 0, len1 = keys.length; l < len1; keyIdx = ++l) {
+                key = keys[keyIdx];
+                results.push(seedDimRange(keyIdx));
+              }
+              return results;
+            } else {
+              return _this.valueRanges[rangeType] = [2e308, -2e308];
+            }
+          };
+        })(this);
+        ref = ["all", "rows", "cols", "rowTotals", "colTotals"];
+        for (l = 0, len1 = ref.length; l < len1; l++) {
+          rangeType = ref[l];
+          seedRange(rangeType);
+        }
+        updateRange = function(range, val) {
+          if ((val != null) && isFinite(val)) {
+            range[0] = Math.min(range[0], val);
+            return range[1] = Math.max(range[1], val);
+          }
+        };
+        ref1 = this.rowKeys;
+        for (rowKeyIdx = n = 0, len2 = ref1.length; n < len2; rowKeyIdx = ++n) {
+          rowKey = ref1[rowKeyIdx];
+          ref2 = this.colKeys;
+          for (colKeyIdx = o = 0, len3 = ref2.length; o < len3; colKeyIdx = ++o) {
+            colKey = ref2[colKeyIdx];
+            val = this.getAggregator(rowKey, colKey).value();
+            updateRange(this.valueRanges.all, val);
+            updateRange(this.valueRanges.rows[rowKeyIdx], val);
+            updateRange(this.valueRanges.cols[colKeyIdx], val);
+          }
+        }
+        updateTotalAggs = (function(_this) {
+          return function(dim) {
+            var getAggs, key, keys, len4, results, t, totalAgg, totalAggs, valueRange;
+            keys = dim === "rows" ? _this.rowKeys : _this.colKeys;
+            valueRange = dim === "rows" ? _this.valueRanges.rowTotals : _this.valueRanges.colTotals;
+            getAggs = function(key) {
+              if (dim === "rows") {
+                return _this.getAggregator(key, []);
+              } else {
+                return _this.getAggregator([], key);
+              }
+            };
+            results = [];
+            for (t = 0, len4 = keys.length; t < len4; t++) {
+              key = keys[t];
+              totalAggs = getAggs(key);
+              if (!$.isArray(totalAggs)) {
+                totalAggs = [totalAggs];
+              }
+              results.push((function() {
+                var len5, results1, u;
+                results1 = [];
+                for (u = 0, len5 = totalAggs.length; u < len5; u++) {
+                  totalAgg = totalAggs[u];
+                  results1.push(updateRange(valueRange, totalAgg.value()));
+                }
+                return results1;
+              })());
+            }
+            return results;
+          };
+        })(this);
+        ref3 = ["rows", "cols"];
+        results = [];
+        for (t = 0, len4 = ref3.length; t < len4; t++) {
+          dim = ref3[t];
+          results.push(updateTotalAggs(dim));
+        }
+        return results;
       };
 
       return PivotData;

@@ -365,11 +365,19 @@ callWithJQuery ($) ->
             #Keys are not sorted on init, but when first accessed (e.g. in getRowKeys()).
             @sorted = false
 
+            # Track min/max values across cuts of the pivot table.
+            @valueRanges = {}
+
             @opts = opts
 
             #Generate table cells and aggregators from records that pass the filter.
             PivotData.forEachRecord input, opts, (record) =>
                 @processRecord(record) if opts.filter(record)
+
+            # In server-mode, keys and aggregators are manually set on the model after
+            # instantiation, so client must call @setValueRanges manually.
+            if input?
+                @setValueRanges
 
         #can handle arrays or jQuery selections of tables
         @forEachRecord = (input, opts, f) ->
@@ -574,6 +582,47 @@ callWithJQuery ($) ->
                 agg = @tree[flatRowKey][flatColKey]
             #In multi-metric mode, don't bother creating default aggregators.
             return if $.isArray(agg) then agg else (agg ? {value: (-> null), format: -> ""})
+
+        # Calculate [min, max] ranges for values across various cuts of the pivot table.
+        setValueRanges: () =>
+            # Seed each tracked range.
+            seedRange = (rangeType) =>
+                if rangeType in ["rows", "cols"]
+                    @valueRanges[rangeType] = {}
+                    keys = if rangeType is "rows" then @rowKeys else @colKeys
+                    seedDimRange = (keyIdx) =>
+                        @valueRanges[rangeType][keyIdx] = [Infinity, -Infinity]
+                    seedDimRange keyIdx for key, keyIdx in keys
+                else
+                    @valueRanges[rangeType] = [Infinity, -Infinity]
+            seedRange rangeType for rangeType in ["all", "rows", "cols", "rowTotals", "colTotals"]
+
+            # Extend the given [min, max] range with the given value.
+            updateRange = (range, val) ->
+                if val? and isFinite val
+                    range[0] = Math.min(range[0], val)
+                    range[1] = Math.max(range[1], val)
+
+            # Calculate ranges across all cells, per-row, and per-column.
+            for rowKey, rowKeyIdx in @rowKeys
+                for colKey, colKeyIdx in @colKeys
+                    val = @getAggregator(rowKey, colKey).value()
+                    updateRange(@valueRanges.all, val)
+                    updateRange(@valueRanges.rows[rowKeyIdx], val)
+                    updateRange(@valueRanges.cols[colKeyIdx], val)
+
+            # Calculate ranges across row and column totals.
+            updateTotalAggs = (dim) =>
+                keys = if dim is "rows" then @rowKeys else @colKeys
+                valueRange = if dim is "rows" then @valueRanges.rowTotals else @valueRanges.colTotals
+                getAggs = (key) =>
+                    if dim is "rows" then @getAggregator(key, []) else @getAggregator([], key)
+                for key in keys
+                    totalAggs = getAggs(key)
+                    if not $.isArray(totalAggs)
+                        totalAggs = [totalAggs]
+                    updateRange(valueRange, totalAgg.value()) for totalAgg in totalAggs
+            updateTotalAggs dim for dim in ["rows", "cols"]
 
     #expose these to the outside world
     $.pivotUtilities = {aggregatorTemplates, aggregators, renderers, derivers, locales,
