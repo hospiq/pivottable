@@ -188,11 +188,11 @@ callWithJQuery ($) ->
         "Count as Fraction of Columns": tpl.fractionOf(tpl.count(), "col",   usFmtPct)
 
     renderers =
-        "Table":          (data, opts) ->   pivotTableRenderer(data, opts)
+        "Table":          (data, opts) -> pivotTableRenderer(data, opts)
         "Table Barchart": (data, opts) -> $(pivotTableRenderer(data, opts)).barchart()
-        "Heatmap":        (data, opts) -> $(pivotTableRenderer(data, opts)).heatmap("heatmap",    opts)
-        "Row Heatmap":    (data, opts) -> $(pivotTableRenderer(data, opts)).heatmap("rowheatmap", opts)
-        "Col Heatmap":    (data, opts) -> $(pivotTableRenderer(data, opts)).heatmap("colheatmap", opts)
+        "Heatmap":        (data, opts) -> pivotTableRenderer(data, opts, "heatmap")
+        "Row Heatmap":    (data, opts) -> pivotTableRenderer(data, opts, "rowheatmap")
+        "Col Heatmap":    (data, opts) -> pivotTableRenderer(data, opts, "colheatmap")
 
     locales =
         en:
@@ -583,47 +583,6 @@ callWithJQuery ($) ->
             #In multi-metric mode, don't bother creating default aggregators.
             return if $.isArray(agg) then agg else (agg ? {value: (-> null), format: -> ""})
 
-        # Calculate [min, max] ranges for values across various cuts of the pivot table.
-        setValueRanges: () =>
-            # Seed each tracked range.
-            seedRange = (rangeType) =>
-                if rangeType in ["rows", "cols"]
-                    @valueRanges[rangeType] = {}
-                    keys = if rangeType is "rows" then @rowKeys else @colKeys
-                    seedDimRange = (keyIdx) =>
-                        @valueRanges[rangeType][keyIdx] = [Infinity, -Infinity]
-                    seedDimRange keyIdx for key, keyIdx in keys
-                else
-                    @valueRanges[rangeType] = [Infinity, -Infinity]
-            seedRange rangeType for rangeType in ["all", "rows", "cols", "rowTotals", "colTotals"]
-
-            # Extend the given [min, max] range with the given value.
-            updateRange = (range, val) ->
-                if val? and isFinite val
-                    range[0] = Math.min(range[0], val)
-                    range[1] = Math.max(range[1], val)
-
-            # Calculate ranges across all cells, per-row, and per-column.
-            for rowKey, rowKeyIdx in @rowKeys
-                for colKey, colKeyIdx in @colKeys
-                    val = @getAggregator(rowKey, colKey).value()
-                    updateRange(@valueRanges.all, val)
-                    updateRange(@valueRanges.rows[rowKeyIdx], val)
-                    updateRange(@valueRanges.cols[colKeyIdx], val)
-
-            # Calculate ranges across row and column totals.
-            updateTotalAggs = (dim) =>
-                keys = if dim is "rows" then @rowKeys else @colKeys
-                valueRange = if dim is "rows" then @valueRanges.rowTotals else @valueRanges.colTotals
-                getAggs = (key) =>
-                    if dim is "rows" then @getAggregator(key, []) else @getAggregator([], key)
-                for key in keys
-                    totalAggs = getAggs(key)
-                    if not $.isArray(totalAggs)
-                        totalAggs = [totalAggs]
-                    updateRange(valueRange, totalAgg.value()) for totalAgg in totalAggs
-            updateTotalAggs dim for dim in ["rows", "cols"]
-
     #expose these to the outside world
     $.pivotUtilities = {aggregatorTemplates, aggregators, renderers, derivers, locales,
         naturalSort, numberFormat, sortAs, PivotData}
@@ -632,7 +591,7 @@ callWithJQuery ($) ->
     Default Renderer for hierarchical table layout
     ###
 
-    pivotTableRenderer = (pivotData, opts) ->
+    pivotTableRenderer = (pivotData, opts, rendererType) ->
         defaults =
             table: clickCallback: null
             localeStrings: totals: "Totals"
@@ -655,6 +614,15 @@ callWithJQuery ($) ->
         if opts.table.headerClickCallback
             getHeaderClickHandler = (rowOrCol, type, val) ->
                 return (e) -> opts.table.headerClickCallback(e, rowOrCol, type, val)
+
+        # If rendering a heatmap or barchart, calculate value ranges across various
+        # pivot table cuts, to generate heatmap colors and bar chart lengths.
+        if rendererType?
+            valueRanges = calculateValueRanges(rendererType, pivotData)
+            if rendererType in ["heatmap", "rowheatmap", "colheatmap"]
+                heatmappers = generateHeatmappers(valueRanges, opts)
+            else
+                scaler = null  # TODO: finish barchart
 
         #now actually build the output
         result = document.createElement("table")
@@ -808,6 +776,11 @@ callWithJQuery ($) ->
                 td = document.createElement("td")
                 td.className = "pvtVal row#{rowKeyIdx} col#{colKeyIdx}"
                 td.textContent = aggregator.format(val)
+                if heatmappers?
+                    td.style.backgroundColor = switch rendererType
+                        when "heatmap" then heatmappers.all(val)
+                        when "rowheatmap" then heatmappers.rows[rowKeyIdx](val)
+                        when "colheatmap" then heatmappers.cols[colKeyIdx](val)
                 td.setAttribute("data-value", val)
                 if getClickHandler?
                     td.onclick = getClickHandler(val, rowKey, colKey)
@@ -819,6 +792,8 @@ callWithJQuery ($) ->
                 td = document.createElement("td")
                 td.className = "pvtTotal rowTotal"
                 td.textContent = totalAggregator.format(val)
+                if heatmappers?
+                    td.style.backgroundColor = heatmappers.rowTotals(val)
                 td.setAttribute("data-value", val)
                 if getClickHandler?
                     td.onclick = getClickHandler(val, rowKey, [])
@@ -860,6 +835,8 @@ callWithJQuery ($) ->
                 td = document.createElement("td")
                 td.className = "pvtTotal colTotal"
                 td.textContent = totalAggregator.format(val)
+                if heatmappers?
+                    td.style.backgroundColor = heatmappers.colTotals(val)
                 td.setAttribute("data-value", val)
                 if getClickHandler?
                     td.onclick = getClickHandler(val, [], colKey)
@@ -910,6 +887,76 @@ callWithJQuery ($) ->
         result.setAttribute("data-numcols", colKeys.length)
 
         return result
+
+    # Calculate [min, max] ranges for values across various cuts of the pivot table.
+    calculateValueRanges = (rendererType, pivotData) =>
+        valueRanges = {}
+
+        # Get required ranges.
+        rangeTypes = switch rendererType
+            when "heatmap" then ["all", "rowTotals", "colTotals"]
+            when "rowheatmap" then ["rows", "rowTotals", "colTotals"]
+            when "colheatmap" then ["cols", "rowTotals", "colTotals"]
+            when "barchart" then ["rows", "colTotals"]
+
+        # Seed each required range.
+        seedRange = (rangeType) ->
+            if rangeType in ["rows", "cols"]
+                valueRanges[rangeType] = {}
+                keys = if rangeType is "rows" then pivotData.rowKeys else pivotData.colKeys
+                seedDimRange = (keyIdx) ->
+                    valueRanges[rangeType][keyIdx] = [Infinity, -Infinity]
+                seedDimRange keyIdx for key, keyIdx in keys
+            else
+                valueRanges[rangeType] = [Infinity, -Infinity]
+        seedRange rangeType for rangeType in rangeTypes
+
+        # Extend the given [min, max] range with the given value.
+        updateRange = (range, val) ->
+            if val? and isFinite val
+                range[0] = Math.min(range[0], val)
+                range[1] = Math.max(range[1], val)
+
+        # Calculate [min, max] for each required range.
+        for rowKey, rowKeyIdx in pivotData.rowKeys
+            for colKey, colKeyIdx in pivotData.colKeys
+                val = pivotData.getAggregator(rowKey, colKey).value()
+                if valueRanges.all?
+                    updateRange(valueRanges.all, val)
+                if valueRanges.rows?
+                    updateRange(valueRanges.rows[rowKeyIdx], val)
+                if valueRanges.cols?
+                    updateRange(valueRanges.cols[colKeyIdx], val)
+                if rowKeyIdx is 0 and valueRanges.colTotals?
+                    totalAggs = $.makeArray(pivotData.getAggregator([], colKey))
+                    updateRange(valueRanges.colTotals, totalAgg.value()) for totalAgg in totalAggs
+            if valueRanges.rowTotals?
+                totalAggs = $.makeArray(pivotData.getAggregator(rowKey, []))
+                updateRange(valueRanges.rowTotals, totalAgg.value()) for totalAgg in totalAggs
+
+        return valueRanges
+
+    # Create functions that take a cell value and return a heatmap color.
+    generateHeatmappers = (valueRanges, opts) ->
+        heatmappers = {}
+
+        # Given a [min, max] range, create a function that generates a CSS color for a value.
+        colorScaleGenerator = opts?.heatmap?.colorScaleGenerator
+        colorScaleGenerator ?= ([min, max]) ->
+            return (x) ->
+                nonRed = 255 - Math.round 255*(x-min)/(max-min)
+                return "rgb(255,#{nonRed},#{nonRed})"
+
+        # Create heatmappers for every range.
+        for rangeType of valueRanges
+            if rangeType in ["rows", "cols"]
+                heatmappers[rangeType] = {}
+                for keyIdx, range of valueRanges[rangeType]
+                    heatmappers[rangeType][keyIdx] = colorScaleGenerator(range)
+            else
+                heatmappers[rangeType] = colorScaleGenerator(valueRanges[rangeType])
+
+        return heatmappers
 
     ###
     Pivot Table core: create PivotData object and call Renderer on it
