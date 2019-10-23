@@ -1538,19 +1538,19 @@
           result = opts.renderer(pivotData, opts.rendererOptions);
         } catch (error) {
           e = error;
-          this.trigger("pivotTableError", e);
+          this.trigger("pivotTableError", [e, opts.localeStrings.renderError]);
           if (typeof console !== "undefined" && console !== null) {
             console.error(e.stack);
           }
-          result = $("<span>").html(opts.localeStrings.renderError);
+          result = $("<span>").empty;
         }
       } catch (error) {
         e = error;
-        this.trigger("pivotTableError", e);
+        this.trigger("pivotTableError", [e, opts.localeStrings.computeError]);
         if (typeof console !== "undefined" && console !== null) {
           console.error(e.stack);
         }
-        result = $("<span>").html(opts.localeStrings.computeError);
+        result = $("<span>").empty;
       }
       x = this[0];
       while (x.hasChildNodes()) {

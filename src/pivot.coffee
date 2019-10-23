@@ -1033,13 +1033,13 @@ callWithJQuery ($) ->
             try
                 result = opts.renderer(pivotData, opts.rendererOptions)
             catch e
-                @trigger("pivotTableError", e)
+                @trigger("pivotTableError", [e, opts.localeStrings.renderError])
                 console.error(e.stack) if console?
-                result = $("<span>").html opts.localeStrings.renderError
+                result = $("<span>").empty
         catch e
-            @trigger("pivotTableError", e)
+            @trigger("pivotTableError", [e, opts.localeStrings.computeError])
             console.error(e.stack) if console?
-            result = $("<span>").html opts.localeStrings.computeError
+            result = $("<span>").empty
 
         x = this[0]
         x.removeChild(x.lastChild) while x.hasChildNodes()
