@@ -965,9 +965,9 @@ callWithJQuery ($) ->
                 bottom = scaler(-min)
             return (x) ->
                 if x < 0
-                    return [bottom + scaler(x), scaler(-x), "gray"]
+                    return [bottom + scaler(x), scaler(-x), "darkred"]
                 else
-                    return [bottom, scaler(x), "darkred"]
+                    return [bottom, scaler(x), "grey"]
 
         # Generate scalers for the barchart ranges.
         scalers.colTotals = generateScaler(valueRanges.colTotals)
@@ -1001,7 +1001,7 @@ callWithJQuery ($) ->
         td.style.padding = 0
         td.style.paddingTop = "5px"
         td.style.textAlign = "center"
-        td.innerHTML = wrapper[0]
+        td.innerHTML = wrapper[0].outerHTML
 
     ###
     Pivot Table core: create PivotData object and call Renderer on it

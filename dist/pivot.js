@@ -1454,9 +1454,9 @@
         }
         return function(x) {
           if (x < 0) {
-            return [bottom + scaler(x), scaler(-x), "gray"];
+            return [bottom + scaler(x), scaler(-x), "darkred"];
           } else {
-            return [bottom, scaler(x), "darkred"];
+            return [bottom, scaler(x), "grey"];
           }
         };
       };
@@ -1493,7 +1493,7 @@
       td.style.padding = 0;
       td.style.paddingTop = "5px";
       td.style.textAlign = "center";
-      return td.innerHTML = wrapper[0];
+      return td.innerHTML = wrapper[0].outerHTML;
     };
 
     /*
