@@ -678,7 +678,6 @@
           };
         })(this));
         this.sorted = false;
-        this.valueRanges = {};
         this.opts = opts;
         PivotData.forEachRecord(input, opts, (function(_this) {
           return function(record) {
@@ -687,9 +686,6 @@
             }
           };
         })(this));
-        if (input != null) {
-          this.setValueRanges;
-        }
       }
 
       PivotData.forEachRecord = function(input, opts, f) {
@@ -1222,7 +1218,6 @@
           } else if (scalers != null) {
             convertToBarchart(td, scalers.rows[rowKeyIdx](val));
           }
-          td.setAttribute("data-value", val);
           if (getClickHandler != null) {
             td.onclick = getClickHandler(val, rowKey, colKey);
           }
@@ -1236,7 +1231,6 @@
           if (heatmappers != null) {
             td.style.backgroundColor = heatmappers.rowTotals(val);
           }
-          td.setAttribute("data-value", val);
           if (getClickHandler != null) {
             td.onclick = getClickHandler(val, rowKey, []);
           }
@@ -1285,7 +1279,6 @@
           } else if (scalers != null) {
             convertToBarchart(td, scalers.colTotals(val));
           }
-          td.setAttribute("data-value", val);
           if (getClickHandler != null) {
             td.onclick = getClickHandler(val, [], colKey);
           }
@@ -1297,7 +1290,6 @@
           td = document.createElement("td");
           td.className = "pvtGrandTotal";
           td.textContent = totalAggregator.format(val);
-          td.setAttribute("data-value", val);
           if (getClickHandler != null) {
             td.onclick = getClickHandler(val, [], []);
           }

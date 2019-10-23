@@ -365,19 +365,11 @@ callWithJQuery ($) ->
             #Keys are not sorted on init, but when first accessed (e.g. in getRowKeys()).
             @sorted = false
 
-            # Track min/max values across cuts of the pivot table.
-            @valueRanges = {}
-
             @opts = opts
 
             #Generate table cells and aggregators from records that pass the filter.
             PivotData.forEachRecord input, opts, (record) =>
                 @processRecord(record) if opts.filter(record)
-
-            # In server-mode, keys and aggregators are manually set on the model after
-            # instantiation, so client must call @setValueRanges manually.
-            if input?
-                @setValueRanges
 
         #can handle arrays or jQuery selections of tables
         @forEachRecord = (input, opts, f) ->
@@ -783,7 +775,6 @@ callWithJQuery ($) ->
                         when "colheatmap" then heatmappers.cols[colKeyIdx](val)
                 else if scalers?
                     convertToBarchart(td, scalers.rows[rowKeyIdx](val))
-                td.setAttribute("data-value", val)
                 if getClickHandler?
                     td.onclick = getClickHandler(val, rowKey, colKey)
                 tr.appendChild td
@@ -796,7 +787,6 @@ callWithJQuery ($) ->
                 td.textContent = totalAggregator.format(val)
                 if heatmappers?
                     td.style.backgroundColor = heatmappers.rowTotals(val)
-                td.setAttribute("data-value", val)
                 if getClickHandler?
                     td.onclick = getClickHandler(val, rowKey, [])
                 td.setAttribute("data-for", "row"+rowKeyIdx)
@@ -841,7 +831,6 @@ callWithJQuery ($) ->
                     td.style.backgroundColor = heatmappers.colTotals(val)
                 else if scalers?
                     convertToBarchart(td, scalers.colTotals(val))
-                td.setAttribute("data-value", val)
                 if getClickHandler?
                     td.onclick = getClickHandler(val, [], colKey)
                 td.setAttribute("data-for", "col"+colKeyIdx)
@@ -853,7 +842,6 @@ callWithJQuery ($) ->
                 td = document.createElement("td")
                 td.className = "pvtGrandTotal"
                 td.textContent = totalAggregator.format(val)
-                td.setAttribute("data-value", val)
                 if getClickHandler?
                     td.onclick = getClickHandler(val, [], [])
                 tr.appendChild td
