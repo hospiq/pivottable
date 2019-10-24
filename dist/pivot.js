@@ -20,7 +20,7 @@
     /*
     Utilities
      */
-    var FLAT_KEY_DELIM, PivotData, addSeparators, aggregatorTemplates, aggregators, dayNamesEn, derivers, getSort, locales, mthNamesEn, naturalSort, numberFormat, pivotTableRenderer, rd, renderers, rx, rz, sortAs, usFmt, usFmtInt, usFmtPct, zeroPad;
+    var FLAT_KEY_DELIM, PivotData, addSeparators, aggregatorTemplates, aggregators, calculateValueRanges, convertToBarchart, dayNamesEn, derivers, generateBarchartScalers, generateHeatmappers, getSort, locales, mthNamesEn, naturalSort, numberFormat, pivotTableRenderer, rd, renderers, rx, rz, sortAs, usFmt, usFmtInt, usFmtPct, zeroPad;
     addSeparators = function(nStr, thousandsSep, decimalSep) {
       var rgx, x, x1, x2;
       nStr += '';
@@ -437,16 +437,16 @@
         return pivotTableRenderer(data, opts);
       },
       "Table Barchart": function(data, opts) {
-        return $(pivotTableRenderer(data, opts)).barchart();
+        return pivotTableRenderer(data, opts, "barchart");
       },
       "Heatmap": function(data, opts) {
-        return $(pivotTableRenderer(data, opts)).heatmap("heatmap", opts);
+        return pivotTableRenderer(data, opts, "heatmap");
       },
       "Row Heatmap": function(data, opts) {
-        return $(pivotTableRenderer(data, opts)).heatmap("rowheatmap", opts);
+        return pivotTableRenderer(data, opts, "rowheatmap");
       },
       "Col Heatmap": function(data, opts) {
-        return $(pivotTableRenderer(data, opts)).heatmap("colheatmap", opts);
+        return pivotTableRenderer(data, opts, "colheatmap");
       }
     };
     locales = {
@@ -995,8 +995,8 @@
     /*
     Default Renderer for hierarchical table layout
      */
-    pivotTableRenderer = function(pivotData, opts) {
-      var agg, aggIdx, aggregator, colAttr, colAttrIdx, colAttrs, colKey, colKeyIdx, colKeys, createHeader, createTotalsCell, createTotalsRow, defaults, flatColKey, flatRowKey, getClickHandler, getHeaderClickHandler, i, l, len1, len2, len3, len4, len5, len6, len7, len8, n, o, ref, ref1, ref2, ref3, result, rowAttr, rowAttrIdx, rowAttrs, rowKey, rowKeyIdx, rowKeys, spanSize, t, tbody, td, th, thead, totalAggregator, tr, txt, u, val, w, x, y, z;
+    pivotTableRenderer = function(pivotData, opts, rendererType) {
+      var agg, aggIdx, aggregator, colAttr, colAttrIdx, colAttrs, colKey, colKeyIdx, colKeys, createHeader, createTotalsCell, createTotalsRow, defaults, flatColKey, flatRowKey, getClickHandler, getHeaderClickHandler, heatmappers, i, l, len1, len2, len3, len4, len5, len6, len7, len8, n, o, ref, ref1, ref2, ref3, result, rowAttr, rowAttrIdx, rowAttrs, rowKey, rowKeyIdx, rowKeys, scalers, spanSize, t, tbody, td, th, thead, totalAggregator, tr, txt, u, val, valueRanges, w, x, y, z;
       defaults = {
         table: {
           clickCallback: null
@@ -1038,6 +1038,14 @@
             return opts.table.headerClickCallback(e, rowOrCol, type, val);
           };
         };
+      }
+      if (rendererType != null) {
+        valueRanges = calculateValueRanges(rendererType, pivotData);
+        if (rendererType === "heatmap" || rendererType === "rowheatmap" || rendererType === "colheatmap") {
+          heatmappers = generateHeatmappers(valueRanges, opts);
+        } else if (rendererType === "barchart") {
+          scalers = generateBarchartScalers(valueRanges);
+        }
       }
       result = document.createElement("table");
       result.className = "pvtTable";
@@ -1196,7 +1204,20 @@
           td = document.createElement("td");
           td.className = "pvtVal row" + rowKeyIdx + " col" + colKeyIdx;
           td.textContent = aggregator.format(val);
-          td.setAttribute("data-value", val);
+          if (heatmappers != null) {
+            td.style.backgroundColor = (function() {
+              switch (rendererType) {
+                case "heatmap":
+                  return heatmappers.all(val);
+                case "rowheatmap":
+                  return heatmappers.rows[rowKeyIdx](val);
+                case "colheatmap":
+                  return heatmappers.cols[colKeyIdx](val);
+              }
+            })();
+          } else if (scalers != null) {
+            convertToBarchart(td, scalers.rows[rowKeyIdx](val));
+          }
           if (getClickHandler != null) {
             td.onclick = getClickHandler(val, rowKey, colKey);
           }
@@ -1207,7 +1228,9 @@
           td = document.createElement("td");
           td.className = "pvtTotal rowTotal";
           td.textContent = totalAggregator.format(val);
-          td.setAttribute("data-value", val);
+          if (heatmappers != null) {
+            td.style.backgroundColor = heatmappers.rowTotals(val);
+          }
           if (getClickHandler != null) {
             td.onclick = getClickHandler(val, rowKey, []);
           }
@@ -1251,7 +1274,11 @@
           td = document.createElement("td");
           td.className = "pvtTotal colTotal";
           td.textContent = totalAggregator.format(val);
-          td.setAttribute("data-value", val);
+          if (heatmappers != null) {
+            td.style.backgroundColor = heatmappers.colTotals(val);
+          } else if (scalers != null) {
+            convertToBarchart(td, scalers.colTotals(val));
+          }
           if (getClickHandler != null) {
             td.onclick = getClickHandler(val, [], colKey);
           }
@@ -1263,7 +1290,6 @@
           td = document.createElement("td");
           td.className = "pvtGrandTotal";
           td.textContent = totalAggregator.format(val);
-          td.setAttribute("data-value", val);
           if (getClickHandler != null) {
             td.onclick = getClickHandler(val, [], []);
           }
@@ -1296,9 +1322,178 @@
         createTotalsRow();
       }
       result.appendChild(tbody);
-      result.setAttribute("data-numrows", rowKeys.length);
-      result.setAttribute("data-numcols", colKeys.length);
       return result;
+    };
+    calculateValueRanges = (function(_this) {
+      return function(rendererType, pivotData) {
+        var colKey, colKeyIdx, l, len1, len2, len3, len4, len5, n, o, rangeType, rangeTypes, ref, ref1, rowKey, rowKeyIdx, seedRange, t, totalAgg, totalAggs, u, updateRange, val, valueRanges;
+        valueRanges = {};
+        rangeTypes = (function() {
+          switch (rendererType) {
+            case "heatmap":
+              return ["all", "rowTotals", "colTotals"];
+            case "rowheatmap":
+              return ["rows", "rowTotals", "colTotals"];
+            case "colheatmap":
+              return ["cols", "rowTotals", "colTotals"];
+            case "barchart":
+              return ["rows", "colTotals"];
+          }
+        })();
+        seedRange = function(rangeType) {
+          var key, keyIdx, keys, l, len1, results, seedDimRange;
+          if (rangeType === "rows" || rangeType === "cols") {
+            valueRanges[rangeType] = {};
+            keys = rangeType === "rows" ? pivotData.rowKeys : pivotData.colKeys;
+            seedDimRange = function(keyIdx) {
+              return valueRanges[rangeType][keyIdx] = [2e308, -2e308];
+            };
+            results = [];
+            for (keyIdx = l = 0, len1 = keys.length; l < len1; keyIdx = ++l) {
+              key = keys[keyIdx];
+              results.push(seedDimRange(keyIdx));
+            }
+            return results;
+          } else {
+            return valueRanges[rangeType] = [2e308, -2e308];
+          }
+        };
+        for (l = 0, len1 = rangeTypes.length; l < len1; l++) {
+          rangeType = rangeTypes[l];
+          seedRange(rangeType);
+        }
+        updateRange = function(range, val) {
+          if ((val != null) && isFinite(val)) {
+            range[0] = Math.min(range[0], val);
+            return range[1] = Math.max(range[1], val);
+          }
+        };
+        ref = pivotData.rowKeys;
+        for (rowKeyIdx = n = 0, len2 = ref.length; n < len2; rowKeyIdx = ++n) {
+          rowKey = ref[rowKeyIdx];
+          ref1 = pivotData.colKeys;
+          for (colKeyIdx = o = 0, len3 = ref1.length; o < len3; colKeyIdx = ++o) {
+            colKey = ref1[colKeyIdx];
+            val = pivotData.getAggregator(rowKey, colKey).value();
+            if (valueRanges.all != null) {
+              updateRange(valueRanges.all, val);
+            }
+            if (valueRanges.rows != null) {
+              updateRange(valueRanges.rows[rowKeyIdx], val);
+            }
+            if (valueRanges.cols != null) {
+              updateRange(valueRanges.cols[colKeyIdx], val);
+            }
+            if (rowKeyIdx === 0 && (valueRanges.colTotals != null)) {
+              totalAggs = $.makeArray(pivotData.getAggregator([], colKey));
+              for (t = 0, len4 = totalAggs.length; t < len4; t++) {
+                totalAgg = totalAggs[t];
+                updateRange(valueRanges.colTotals, totalAgg.value());
+              }
+            }
+          }
+          if (valueRanges.rowTotals != null) {
+            totalAggs = $.makeArray(pivotData.getAggregator(rowKey, []));
+            for (u = 0, len5 = totalAggs.length; u < len5; u++) {
+              totalAgg = totalAggs[u];
+              updateRange(valueRanges.rowTotals, totalAgg.value());
+            }
+          }
+        }
+        return valueRanges;
+      };
+    })(this);
+    generateHeatmappers = function(valueRanges, opts) {
+      var colorScaleGenerator, heatmappers, keyIdx, range, rangeType, ref, ref1;
+      heatmappers = {};
+      colorScaleGenerator = opts != null ? (ref = opts.heatmap) != null ? ref.colorScaleGenerator : void 0 : void 0;
+      if (colorScaleGenerator == null) {
+        colorScaleGenerator = function(arg) {
+          var max, min;
+          min = arg[0], max = arg[1];
+          return function(x) {
+            var nonRed;
+            nonRed = 255 - Math.round(255 * (x - min) / (max - min));
+            return "rgb(255," + nonRed + "," + nonRed + ")";
+          };
+        };
+      }
+      for (rangeType in valueRanges) {
+        if (rangeType === "rows" || rangeType === "cols") {
+          heatmappers[rangeType] = {};
+          ref1 = valueRanges[rangeType];
+          for (keyIdx in ref1) {
+            range = ref1[keyIdx];
+            heatmappers[rangeType][keyIdx] = colorScaleGenerator(range);
+          }
+        } else {
+          heatmappers[rangeType] = colorScaleGenerator(valueRanges[rangeType]);
+        }
+      }
+      return heatmappers;
+    };
+    generateBarchartScalers = function(valueRanges) {
+      var generateScaler, ref, rowKeyIdx, rowRange, scalers;
+      scalers = {};
+      generateScaler = function(arg) {
+        var bottom, max, min, range, scaler;
+        min = arg[0], max = arg[1];
+        if (max < 0) {
+          max = 0;
+        }
+        range = max;
+        if (min < 0) {
+          range = max - min;
+        }
+        scaler = function(x) {
+          return 100 * x / (1.4 * range);
+        };
+        bottom = 0;
+        if (min < 0) {
+          bottom = scaler(-min);
+        }
+        return function(x) {
+          if (x < 0) {
+            return [bottom + scaler(x), scaler(-x), "darkred"];
+          } else {
+            return [bottom, scaler(x), "grey"];
+          }
+        };
+      };
+      scalers.colTotals = generateScaler(valueRanges.colTotals);
+      scalers.rows = {};
+      ref = valueRanges.rows;
+      for (rowKeyIdx in ref) {
+        rowRange = ref[rowKeyIdx];
+        scalers.rows[rowKeyIdx] = generateScaler(rowRange);
+      }
+      return scalers;
+    };
+    convertToBarchart = function(td, arg) {
+      var bgColor, bottom, height, text, wrapper;
+      bottom = arg[0], height = arg[1], bgColor = arg[2];
+      text = td.textContent;
+      wrapper = $("<div>").css({
+        "position": "relative",
+        "height": "55px"
+      });
+      wrapper.append($("<div>").css({
+        "position": "absolute",
+        "bottom": bottom + "%",
+        "left": 0,
+        "right": 0,
+        "height": height + "%",
+        "background-color": bgColor
+      }));
+      wrapper.append($("<div>").text(text).css({
+        "position": "relative",
+        "padding-left": "5px",
+        "padding-right": "5px"
+      }));
+      td.style.padding = 0;
+      td.style.paddingTop = "5px";
+      td.style.textAlign = "center";
+      return td.innerHTML = wrapper[0].outerHTML;
     };
 
     /*
@@ -1343,19 +1538,19 @@
           result = opts.renderer(pivotData, opts.rendererOptions);
         } catch (error) {
           e = error;
-          this.trigger("pivotTableError", e);
+          this.trigger("pivotTableError", [e, opts.localeStrings.renderError]);
           if (typeof console !== "undefined" && console !== null) {
             console.error(e.stack);
           }
-          result = $("<span>").html(opts.localeStrings.renderError);
+          result = $("<span>").empty;
         }
       } catch (error) {
         e = error;
-        this.trigger("pivotTableError", e);
+        this.trigger("pivotTableError", [e, opts.localeStrings.computeError]);
         if (typeof console !== "undefined" && console !== null) {
           console.error(e.stack);
         }
-        result = $("<span>").html(opts.localeStrings.computeError);
+        result = $("<span>").empty;
       }
       x = this[0];
       while (x.hasChildNodes()) {
@@ -1367,7 +1562,7 @@
     /*
     Pivot Table UI: calls Pivot Table core above with options set by user
      */
-    $.fn.pivotUI = function(input, inputOpts, overwrite, locale) {
+    return $.fn.pivotUI = function(input, inputOpts, overwrite, locale) {
       var a, aggregator, attr, attrLength, attrValues, c, colOrderArrow, defaults, e, existingOpts, fn1, i, initialRender, l, len1, len2, len3, localeDefaults, localeStrings, materializedInput, n, o, opts, ordering, pivotTable, recordsProcessed, ref, ref1, ref2, ref3, refresh, refreshDelayed, renderer, rendererControl, rowOrderArrow, shownAttributes, shownInAggregators, shownInDragDrop, tr1, tr2, uiTable, unused, unusedAttrsVerticalAutoCutoff, unusedAttrsVerticalAutoOverride, x;
       if (overwrite == null) {
         overwrite = false;
@@ -1857,150 +2052,6 @@
         }
         this.html(opts.localeStrings.uiRenderError);
       }
-      return this;
-    };
-
-    /*
-    Heatmap post-processing
-     */
-    $.fn.heatmap = function(scope, opts) {
-      var colorScaleGenerator, heatmapper, i, j, l, n, numCols, numRows, ref, ref1, ref2;
-      if (scope == null) {
-        scope = "heatmap";
-      }
-      numRows = this.data("numrows");
-      numCols = this.data("numcols");
-      colorScaleGenerator = opts != null ? (ref = opts.heatmap) != null ? ref.colorScaleGenerator : void 0 : void 0;
-      if (colorScaleGenerator == null) {
-        colorScaleGenerator = function(values) {
-          var max, min;
-          min = Math.min.apply(Math, values);
-          max = Math.max.apply(Math, values);
-          return function(x) {
-            var nonRed;
-            nonRed = 255 - Math.round(255 * (x - min) / (max - min));
-            return "rgb(255," + nonRed + "," + nonRed + ")";
-          };
-        };
-      }
-      heatmapper = (function(_this) {
-        return function(scope) {
-          var colorScale, forEachCell, values;
-          forEachCell = function(f) {
-            return _this.find(scope).each(function() {
-              var x;
-              x = $(this).data("value");
-              if ((x != null) && isFinite(x)) {
-                return f(x, $(this));
-              }
-            });
-          };
-          values = [];
-          forEachCell(function(x) {
-            return values.push(x);
-          });
-          colorScale = colorScaleGenerator(values);
-          return forEachCell(function(x, elem) {
-            return elem.css("background-color", colorScale(x));
-          });
-        };
-      })(this);
-      switch (scope) {
-        case "heatmap":
-          heatmapper(".pvtVal");
-          break;
-        case "rowheatmap":
-          for (i = l = 0, ref1 = numRows; 0 <= ref1 ? l < ref1 : l > ref1; i = 0 <= ref1 ? ++l : --l) {
-            heatmapper(".pvtVal.row" + i);
-          }
-          break;
-        case "colheatmap":
-          for (j = n = 0, ref2 = numCols; 0 <= ref2 ? n < ref2 : n > ref2; j = 0 <= ref2 ? ++n : --n) {
-            heatmapper(".pvtVal.col" + j);
-          }
-      }
-      heatmapper(".pvtTotal.rowTotal");
-      heatmapper(".pvtTotal.colTotal");
-      return this;
-    };
-
-    /*
-    Barchart post-processing
-     */
-    return $.fn.barchart = function(opts) {
-      var barcharter, i, l, numCols, numRows, ref;
-      numRows = this.data("numrows");
-      numCols = this.data("numcols");
-      barcharter = (function(_this) {
-        return function(scope) {
-          var forEachCell, max, min, range, scaler, values;
-          forEachCell = function(f) {
-            return _this.find(scope).each(function() {
-              var x;
-              x = $(this).data("value");
-              if ((x != null) && isFinite(x)) {
-                return f(x, $(this));
-              }
-            });
-          };
-          values = [];
-          forEachCell(function(x) {
-            return values.push(x);
-          });
-          max = Math.max.apply(Math, values);
-          if (max < 0) {
-            max = 0;
-          }
-          range = max;
-          min = Math.min.apply(Math, values);
-          if (min < 0) {
-            range = max - min;
-          }
-          scaler = function(x) {
-            return 100 * x / (1.4 * range);
-          };
-          return forEachCell(function(x, elem) {
-            var bBase, bgColor, text, wrapper;
-            text = elem.text();
-            wrapper = $("<div>").css({
-              "position": "relative",
-              "height": "55px"
-            });
-            bgColor = "gray";
-            bBase = 0;
-            if (min < 0) {
-              bBase = scaler(-min);
-            }
-            if (x < 0) {
-              bBase += scaler(x);
-              bgColor = "darkred";
-              x = -x;
-            }
-            wrapper.append($("<div>").css({
-              "position": "absolute",
-              "bottom": bBase + "%",
-              "left": 0,
-              "right": 0,
-              "height": scaler(x) + "%",
-              "background-color": bgColor
-            }));
-            wrapper.append($("<div>").text(text).css({
-              "position": "relative",
-              "padding-left": "5px",
-              "padding-right": "5px"
-            }));
-            return elem.css({
-              "padding": 0,
-              "padding-top": "5px",
-              "text-align": "center"
-            }).html(wrapper);
-          });
-        };
-      })(this);
-      for (i = l = 0, ref = numRows; 0 <= ref ? l < ref : l > ref; i = 0 <= ref ? ++l : --l) {
-        barcharter(".pvtVal.row" + i);
-      }
-      barcharter(".pvtTotal.colTotal");
       return this;
     };
   });

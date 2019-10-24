@@ -188,11 +188,11 @@ callWithJQuery ($) ->
         "Count as Fraction of Columns": tpl.fractionOf(tpl.count(), "col",   usFmtPct)
 
     renderers =
-        "Table":          (data, opts) ->   pivotTableRenderer(data, opts)
-        "Table Barchart": (data, opts) -> $(pivotTableRenderer(data, opts)).barchart()
-        "Heatmap":        (data, opts) -> $(pivotTableRenderer(data, opts)).heatmap("heatmap",    opts)
-        "Row Heatmap":    (data, opts) -> $(pivotTableRenderer(data, opts)).heatmap("rowheatmap", opts)
-        "Col Heatmap":    (data, opts) -> $(pivotTableRenderer(data, opts)).heatmap("colheatmap", opts)
+        "Table":          (data, opts) -> pivotTableRenderer(data, opts)
+        "Table Barchart": (data, opts) -> pivotTableRenderer(data, opts, "barchart")
+        "Heatmap":        (data, opts) -> pivotTableRenderer(data, opts, "heatmap")
+        "Row Heatmap":    (data, opts) -> pivotTableRenderer(data, opts, "rowheatmap")
+        "Col Heatmap":    (data, opts) -> pivotTableRenderer(data, opts, "colheatmap")
 
     locales =
         en:
@@ -583,7 +583,7 @@ callWithJQuery ($) ->
     Default Renderer for hierarchical table layout
     ###
 
-    pivotTableRenderer = (pivotData, opts) ->
+    pivotTableRenderer = (pivotData, opts, rendererType) ->
         defaults =
             table: clickCallback: null
             localeStrings: totals: "Totals"
@@ -606,6 +606,15 @@ callWithJQuery ($) ->
         if opts.table.headerClickCallback
             getHeaderClickHandler = (rowOrCol, type, val) ->
                 return (e) -> opts.table.headerClickCallback(e, rowOrCol, type, val)
+
+        # If rendering a heatmap or barchart, calculate value ranges across various
+        # pivot table cuts, to generate heatmap colors and bar chart lengths.
+        if rendererType?
+            valueRanges = calculateValueRanges(rendererType, pivotData)
+            if rendererType in ["heatmap", "rowheatmap", "colheatmap"]
+                heatmappers = generateHeatmappers(valueRanges, opts)
+            else if rendererType is "barchart"
+                scalers = generateBarchartScalers(valueRanges)
 
         #now actually build the output
         result = document.createElement("table")
@@ -759,7 +768,13 @@ callWithJQuery ($) ->
                 td = document.createElement("td")
                 td.className = "pvtVal row#{rowKeyIdx} col#{colKeyIdx}"
                 td.textContent = aggregator.format(val)
-                td.setAttribute("data-value", val)
+                if heatmappers?
+                    td.style.backgroundColor = switch rendererType
+                        when "heatmap" then heatmappers.all(val)
+                        when "rowheatmap" then heatmappers.rows[rowKeyIdx](val)
+                        when "colheatmap" then heatmappers.cols[colKeyIdx](val)
+                else if scalers?
+                    convertToBarchart(td, scalers.rows[rowKeyIdx](val))
                 if getClickHandler?
                     td.onclick = getClickHandler(val, rowKey, colKey)
                 tr.appendChild td
@@ -770,7 +785,8 @@ callWithJQuery ($) ->
                 td = document.createElement("td")
                 td.className = "pvtTotal rowTotal"
                 td.textContent = totalAggregator.format(val)
-                td.setAttribute("data-value", val)
+                if heatmappers?
+                    td.style.backgroundColor = heatmappers.rowTotals(val)
                 if getClickHandler?
                     td.onclick = getClickHandler(val, rowKey, [])
                 td.setAttribute("data-for", "row"+rowKeyIdx)
@@ -811,7 +827,10 @@ callWithJQuery ($) ->
                 td = document.createElement("td")
                 td.className = "pvtTotal colTotal"
                 td.textContent = totalAggregator.format(val)
-                td.setAttribute("data-value", val)
+                if heatmappers?
+                    td.style.backgroundColor = heatmappers.colTotals(val)
+                else if scalers?
+                    convertToBarchart(td, scalers.colTotals(val))
                 if getClickHandler?
                     td.onclick = getClickHandler(val, [], colKey)
                 td.setAttribute("data-for", "col"+colKeyIdx)
@@ -823,7 +842,6 @@ callWithJQuery ($) ->
                 td = document.createElement("td")
                 td.className = "pvtGrandTotal"
                 td.textContent = totalAggregator.format(val)
-                td.setAttribute("data-value", val)
                 if getClickHandler?
                     td.onclick = getClickHandler(val, [], [])
                 tr.appendChild td
@@ -856,11 +874,134 @@ callWithJQuery ($) ->
 
         result.appendChild tbody
 
-        #squirrel this away for later
-        result.setAttribute("data-numrows", rowKeys.length)
-        result.setAttribute("data-numcols", colKeys.length)
-
         return result
+
+    # Calculate [min, max] ranges for values across various cuts of the pivot table.
+    calculateValueRanges = (rendererType, pivotData) =>
+        valueRanges = {}
+
+        # Get required ranges.
+        rangeTypes = switch rendererType
+            when "heatmap" then ["all", "rowTotals", "colTotals"]
+            when "rowheatmap" then ["rows", "rowTotals", "colTotals"]
+            when "colheatmap" then ["cols", "rowTotals", "colTotals"]
+            when "barchart" then ["rows", "colTotals"]
+
+        # Seed each required range.
+        seedRange = (rangeType) ->
+            if rangeType in ["rows", "cols"]
+                valueRanges[rangeType] = {}
+                keys = if rangeType is "rows" then pivotData.rowKeys else pivotData.colKeys
+                seedDimRange = (keyIdx) ->
+                    valueRanges[rangeType][keyIdx] = [Infinity, -Infinity]
+                seedDimRange keyIdx for key, keyIdx in keys
+            else
+                valueRanges[rangeType] = [Infinity, -Infinity]
+        seedRange rangeType for rangeType in rangeTypes
+
+        # Extend the given [min, max] range with the given value.
+        updateRange = (range, val) ->
+            if val? and isFinite val
+                range[0] = Math.min(range[0], val)
+                range[1] = Math.max(range[1], val)
+
+        # Calculate [min, max] for each required range.
+        for rowKey, rowKeyIdx in pivotData.rowKeys
+            for colKey, colKeyIdx in pivotData.colKeys
+                val = pivotData.getAggregator(rowKey, colKey).value()
+                if valueRanges.all?
+                    updateRange(valueRanges.all, val)
+                if valueRanges.rows?
+                    updateRange(valueRanges.rows[rowKeyIdx], val)
+                if valueRanges.cols?
+                    updateRange(valueRanges.cols[colKeyIdx], val)
+                if rowKeyIdx is 0 and valueRanges.colTotals?
+                    totalAggs = $.makeArray(pivotData.getAggregator([], colKey))
+                    updateRange(valueRanges.colTotals, totalAgg.value()) for totalAgg in totalAggs
+            if valueRanges.rowTotals?
+                totalAggs = $.makeArray(pivotData.getAggregator(rowKey, []))
+                updateRange(valueRanges.rowTotals, totalAgg.value()) for totalAgg in totalAggs
+
+        return valueRanges
+
+    # Create functions that take a cell value and return a heatmap color.
+    generateHeatmappers = (valueRanges, opts) ->
+        heatmappers = {}
+
+        # Given a [min, max] range, create a function that generates a CSS color for a value.
+        colorScaleGenerator = opts?.heatmap?.colorScaleGenerator
+        colorScaleGenerator ?= ([min, max]) ->
+            return (x) ->
+                nonRed = 255 - Math.round 255*(x-min)/(max-min)
+                return "rgb(255,#{nonRed},#{nonRed})"
+
+        # Create heatmappers for every range.
+        for rangeType of valueRanges
+            if rangeType in ["rows", "cols"]
+                heatmappers[rangeType] = {}
+                for keyIdx, range of valueRanges[rangeType]
+                    heatmappers[rangeType][keyIdx] = colorScaleGenerator(range)
+            else
+                heatmappers[rangeType] = colorScaleGenerator(valueRanges[rangeType])
+
+        return heatmappers
+
+    # Create functions that take a cell value and return info for creating a
+    # properly sized bar in a bar chart.
+    generateBarchartScalers = (valueRanges) ->
+        scalers = {}
+
+        # Given a [min, max] range, create a function that generates a
+        # [bottom, height, bgColor] triplet for a cell value.
+        generateScaler = ([min, max]) ->
+            if max < 0
+                max = 0
+            range = max;
+            if min < 0
+                range = max - min
+            scaler = (x) -> 100 * x / (1.4 * range)
+            bottom = 0
+            if min < 0
+                bottom = scaler(-min)
+            return (x) ->
+                if x < 0
+                    return [bottom + scaler(x), scaler(-x), "darkred"]
+                else
+                    return [bottom, scaler(x), "grey"]
+
+        # Generate scalers for the barchart ranges.
+        scalers.colTotals = generateScaler(valueRanges.colTotals)
+        scalers.rows = {}
+        for rowKeyIdx, rowRange of valueRanges.rows
+            scalers.rows[rowKeyIdx] = generateScaler(rowRange)
+
+        return scalers
+
+    # Given a cell in the pivot table, and bar chart info from generateScaler(),
+    # convert the DOM element into a bar.
+    convertToBarchart = (td, [bottom, height, bgColor]) ->
+        text = td.textContent
+        wrapper = $("<div>").css
+            "position": "relative"
+            "height": "55px"
+
+        wrapper.append $("<div>").css
+            "position": "absolute"
+            "bottom": bottom + "%"
+            "left": 0
+            "right": 0
+            "height": height + "%"
+            "background-color": bgColor
+
+        wrapper.append $("<div>").text(text).css
+            "position":"relative"
+            "padding-left":"5px"
+            "padding-right":"5px"
+
+        td.style.padding = 0
+        td.style.paddingTop = "5px"
+        td.style.textAlign = "center"
+        td.innerHTML = wrapper[0].outerHTML
 
     ###
     Pivot Table core: create PivotData object and call Renderer on it
@@ -892,13 +1033,13 @@ callWithJQuery ($) ->
             try
                 result = opts.renderer(pivotData, opts.rendererOptions)
             catch e
-                @trigger("pivotTableError", e)
+                @trigger("pivotTableError", [e, opts.localeStrings.renderError])
                 console.error(e.stack) if console?
-                result = $("<span>").html opts.localeStrings.renderError
+                result = $("<span>").empty
         catch e
-            @trigger("pivotTableError", e)
+            @trigger("pivotTableError", [e, opts.localeStrings.computeError])
             console.error(e.stack) if console?
-            result = $("<span>").html opts.localeStrings.computeError
+            result = $("<span>").empty
 
         x = this[0]
         x.removeChild(x.lastChild) while x.hasChildNodes()
@@ -1295,99 +1436,4 @@ callWithJQuery ($) ->
             @trigger("pivotTableError", e)
             console.error(e.stack) if console?
             @html opts.localeStrings.uiRenderError
-        return this
-
-    ###
-    Heatmap post-processing
-    ###
-
-    $.fn.heatmap = (scope = "heatmap", opts) ->
-        numRows = @data "numrows"
-        numCols = @data "numcols"
-
-        # given a series of values
-        # must return a function to map a given value to a CSS color
-        colorScaleGenerator = opts?.heatmap?.colorScaleGenerator
-        colorScaleGenerator ?= (values) ->
-            min = Math.min(values...)
-            max = Math.max(values...)
-            return (x) ->
-                nonRed = 255 - Math.round 255*(x-min)/(max-min)
-                return "rgb(255,#{nonRed},#{nonRed})"
-
-        heatmapper = (scope) =>
-            forEachCell = (f) =>
-                @find(scope).each ->
-                    x = $(this).data("value")
-                    f(x, $(this)) if x? and isFinite(x)
-
-            values = []
-            forEachCell (x) -> values.push x
-            colorScale = colorScaleGenerator(values)
-            forEachCell (x, elem) -> elem.css "background-color", colorScale(x)
-
-        switch scope
-            when "heatmap"    then heatmapper ".pvtVal"
-            when "rowheatmap" then heatmapper ".pvtVal.row#{i}" for i in [0...numRows]
-            when "colheatmap" then heatmapper ".pvtVal.col#{j}" for j in [0...numCols]
-
-        heatmapper ".pvtTotal.rowTotal"
-        heatmapper ".pvtTotal.colTotal"
-
-        return this
-
-    ###
-    Barchart post-processing
-    ###
-
-    $.fn.barchart = (opts) ->
-        numRows = @data "numrows"
-        numCols = @data "numcols"
-
-        barcharter = (scope) =>
-            forEachCell = (f) =>
-                @find(scope).each ->
-                    x = $(this).data("value")
-                    f(x, $(this)) if x? and isFinite(x)
-
-            values = []
-            forEachCell (x) -> values.push x
-            max = Math.max(values...)
-            if max < 0
-                max = 0
-            range = max;
-            min = Math.min(values...)
-            if min < 0
-                range = max - min
-            scaler = (x) -> 100*x/(1.4*range)
-            forEachCell (x, elem) ->
-                text = elem.text()
-                wrapper = $("<div>").css
-                    "position": "relative"
-                    "height": "55px"
-                bgColor = "gray"
-                bBase = 0
-                if min < 0
-                    bBase = scaler(-min)
-                if x < 0
-                    bBase += scaler(x)
-                    bgColor = "darkred"
-                    x = -x
-                wrapper.append $("<div>").css
-                    "position": "absolute"
-                    "bottom": bBase + "%"
-                    "left": 0
-                    "right": 0
-                    "height": scaler(x) + "%"
-                    "background-color": bgColor
-                wrapper.append $("<div>").text(text).css
-                    "position":"relative"
-                    "padding-left":"5px"
-                    "padding-right":"5px"
-
-                elem.css("padding": 0,"padding-top": "5px", "text-align": "center").html wrapper
-
-        barcharter ".pvtVal.row#{i}" for i in [0...numRows]
-        barcharter ".pvtTotal.colTotal"
-
         return this
