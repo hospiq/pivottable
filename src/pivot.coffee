@@ -597,10 +597,16 @@ callWithJQuery ($) ->
         colKeys = pivotData.getColKeys()
 
         if opts.table.clickCallback
-            getClickHandler = (value, rowKey, colKey) ->
+            getClickHandler = (value, rowKey, colKey, aggIdx = null) ->
                 filters = {}
                 filters[attr] = colKey[i] for attr, i in colAttrs when colKey[i]?
                 filters[attr] = rowKey[i] for attr, i in rowAttrs when rowKey[i]?
+                # Add metric index clicked for row totals/grand totals.
+                # This allows us to generate the correct filters from filtered attributes for the drilldown
+                # There is no need to add this if the attribute also exists in as a row or column.
+                if aggIdx?
+                    filters[pivotData.multiAggAttr] = aggIdx
+
                 return (e) -> opts.table.clickCallback(e, value, filters, pivotData)
 
         if opts.table.headerClickCallback
@@ -780,7 +786,7 @@ callWithJQuery ($) ->
                 tr.appendChild td
 
             #create rightmost row totals cell/s
-            createTotalsCell = (totalAggregator) ->
+            createTotalsCell = (totalAggregator, aggIdx) ->
                 val = totalAggregator.value()
                 td = document.createElement("td")
                 td.className = "pvtTotal rowTotal"
@@ -788,7 +794,7 @@ callWithJQuery ($) ->
                 if heatmappers?
                     td.style.backgroundColor = heatmappers.rowTotals(val)
                 if getClickHandler?
-                    td.onclick = getClickHandler(val, rowKey, [])
+                    td.onclick = getClickHandler(val, rowKey, [], aggIdx)
                 td.setAttribute("data-for", "row"+rowKeyIdx)
                 tr.appendChild td
             totalAggregator = pivotData.getAggregator(rowKey, [])
@@ -796,10 +802,10 @@ callWithJQuery ($) ->
             if $.isArray(totalAggregator)
                 #Skip row totals if "Metrics" is the only col attr: the totals are redundant.
                 if colAttrs.length > 1
-                    for agg in totalAggregator
-                        createTotalsCell(agg)
+                    for agg, aggIdx in totalAggregator
+                        createTotalsCell(agg, aggIdx)
             else
-                createTotalsCell(totalAggregator)
+                createTotalsCell(totalAggregator, null)
 
             tbody.appendChild tr
 
@@ -837,13 +843,13 @@ callWithJQuery ($) ->
                 tr.appendChild td
 
             #right-most grand total cell
-            createGrandTotalCell = (totalAggregator) ->
+            createGrandTotalCell = (totalAggregator, aggIdx) ->
                 val = totalAggregator.value()
                 td = document.createElement("td")
                 td.className = "pvtGrandTotal"
                 td.textContent = totalAggregator.format(val)
                 if getClickHandler?
-                    td.onclick = getClickHandler(val, [], [])
+                    td.onclick = getClickHandler(val, [], [], aggIdx)
                 tr.appendChild td
 
             #This is an array in multi-metrics mode.
@@ -857,8 +863,8 @@ callWithJQuery ($) ->
             else
                 #Skip row totals if "Metrics" is the only col attr: totals are redundant.
                 if colAttrs.length > 1
-                    for agg in totalAggregator
-                        createGrandTotalCell(agg)
+                    for agg, aggIdx in totalAggregator
+                        createGrandTotalCell(agg, aggIdx)
 
             tbody.appendChild tr
 

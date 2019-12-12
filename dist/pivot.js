@@ -1012,8 +1012,11 @@
       rowKeys = pivotData.getRowKeys();
       colKeys = pivotData.getColKeys();
       if (opts.table.clickCallback) {
-        getClickHandler = function(value, rowKey, colKey) {
+        getClickHandler = function(value, rowKey, colKey, aggIdx) {
           var attr, filters, i, l, len1, len2, n;
+          if (aggIdx == null) {
+            aggIdx = null;
+          }
           filters = {};
           for (i = l = 0, len1 = colAttrs.length; l < len1; i = ++l) {
             attr = colAttrs[i];
@@ -1026,6 +1029,9 @@
             if (rowKey[i] != null) {
               filters[attr] = rowKey[i];
             }
+          }
+          if (aggIdx != null) {
+            filters[pivotData.multiAggAttr] = aggIdx;
           }
           return function(e) {
             return opts.table.clickCallback(e, value, filters, pivotData);
@@ -1223,7 +1229,7 @@
           }
           tr.appendChild(td);
         }
-        createTotalsCell = function(totalAggregator) {
+        createTotalsCell = function(totalAggregator, aggIdx) {
           val = totalAggregator.value();
           td = document.createElement("td");
           td.className = "pvtTotal rowTotal";
@@ -1232,7 +1238,7 @@
             td.style.backgroundColor = heatmappers.rowTotals(val);
           }
           if (getClickHandler != null) {
-            td.onclick = getClickHandler(val, rowKey, []);
+            td.onclick = getClickHandler(val, rowKey, [], aggIdx);
           }
           td.setAttribute("data-for", "row" + rowKeyIdx);
           return tr.appendChild(td);
@@ -1240,13 +1246,13 @@
         totalAggregator = pivotData.getAggregator(rowKey, []);
         if ($.isArray(totalAggregator)) {
           if (colAttrs.length > 1) {
-            for (y = 0, len7 = totalAggregator.length; y < len7; y++) {
-              agg = totalAggregator[y];
-              createTotalsCell(agg);
+            for (aggIdx = y = 0, len7 = totalAggregator.length; y < len7; aggIdx = ++y) {
+              agg = totalAggregator[aggIdx];
+              createTotalsCell(agg, aggIdx);
             }
           }
         } else {
-          createTotalsCell(totalAggregator);
+          createTotalsCell(totalAggregator, null);
         }
         tbody.appendChild(tr);
       }
@@ -1285,13 +1291,13 @@
           td.setAttribute("data-for", "col" + colKeyIdx);
           tr.appendChild(td);
         }
-        createGrandTotalCell = function(totalAggregator) {
+        createGrandTotalCell = function(totalAggregator, aggIdx) {
           val = totalAggregator.value();
           td = document.createElement("td");
           td.className = "pvtGrandTotal";
           td.textContent = totalAggregator.format(val);
           if (getClickHandler != null) {
-            td.onclick = getClickHandler(val, [], []);
+            td.onclick = getClickHandler(val, [], [], aggIdx);
           }
           return tr.appendChild(td);
         };
@@ -1302,9 +1308,9 @@
           createGrandTotalCell(totalAggregator[aggIdx]);
         } else {
           if (colAttrs.length > 1) {
-            for (i1 = 0, len9 = totalAggregator.length; i1 < len9; i1++) {
-              agg = totalAggregator[i1];
-              createGrandTotalCell(agg);
+            for (aggIdx = i1 = 0, len9 = totalAggregator.length; i1 < len9; aggIdx = ++i1) {
+              agg = totalAggregator[aggIdx];
+              createGrandTotalCell(agg, aggIdx);
             }
           }
         }
