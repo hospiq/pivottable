@@ -602,8 +602,7 @@ callWithJQuery ($) ->
                 filters[attr] = colKey[i] for attr, i in colAttrs when colKey[i]?
                 filters[attr] = rowKey[i] for attr, i in rowAttrs when rowKey[i]?
                 # Add metric index clicked for row totals/grand totals.
-                # This allows us to generate the correct filters from filtered attributes for the drilldown
-                # There is no need to add this if the attribute also exists in as a row or column.
+                # This allows us to generate the correct filters from filtered attributes for the drilldown.
                 if aggIdx?
                     filters[pivotData.multiAggAttr] = aggIdx
 
