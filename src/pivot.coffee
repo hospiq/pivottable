@@ -837,7 +837,7 @@ callWithJQuery ($) ->
                 else if scalers?
                     convertToBarchart(td, scalers.colTotals(val))
                 if getClickHandler?
-                    td.onclick = getClickHandler(val, [], colKey)
+                    td.onclick = getClickHandler(val, [], colKey, aggIdx)
                 td.setAttribute("data-for", "col"+colKeyIdx)
                 tr.appendChild td
 
