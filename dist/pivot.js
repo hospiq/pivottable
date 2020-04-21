@@ -20,7 +20,7 @@
     /*
     Utilities
      */
-    var FLAT_KEY_DELIM, PivotData, addSeparators, aggregatorTemplates, aggregators, calculateValueRanges, convertToBarchart, dayNamesEn, derivers, generateBarchartScalers, generateHeatmappers, getSort, locales, mthNamesEn, naturalSort, numberFormat, pivotTableRenderer, rd, renderers, rx, rz, sortAs, usFmt, usFmtInt, usFmtPct, zeroPad;
+    var FLAT_KEY_DELIM, PivotData, addSeparators, aggregatorTemplates, aggregators, calculateValueRanges, convertToBarchart, dayNamesEn, derivers, generateBarchartScalers, generateHeatmappers, getSort, locales, metaAggregators, mthNamesEn, naturalSort, numberFormat, pivotTableRenderer, rd, renderers, rx, rz, sortAs, usFmt, usFmtInt, usFmtPct, zeroPad;
     addSeparators = function(nStr, thousandsSep, decimalSep) {
       var rgx, x, x1, x2;
       nStr += '';
@@ -62,6 +62,66 @@
       scaler: 100,
       suffix: "%"
     });
+    metaAggregators = {
+      sum: function() {
+        return {
+          aggregators: new Set(),
+          push: function(aggregator) {
+            return this.aggregators.add(aggregator);
+          },
+          format: function(val) {
+            return Array.from(this.aggregators)[0].format(val);
+          },
+          value: function() {
+            var sum;
+            sum = null;
+            this.aggregators.forEach(function(agg) {
+              var aggVal;
+              aggVal = agg.value();
+              if (isFinite(aggVal)) {
+                return sum = sum === null ? aggVal : sum + aggVal;
+              }
+            });
+            return sum;
+          }
+        };
+      },
+      avg: function() {
+        return {
+          aggregators: new Set(),
+          push: function(aggregator) {
+            return this.aggregators.add(aggregator);
+          },
+          format: function(val) {
+            var formatted;
+            formatted = Array.from(this.aggregators)[0].format(val);
+            if (formatted.startsWith('%')) {
+              return formatted;
+            } else {
+              return usFmt(val);
+            }
+          },
+          value: function() {
+            var count, sum;
+            sum = 0;
+            count = 0;
+            this.aggregators.forEach(function(agg) {
+              var aggVal;
+              aggVal = agg.value();
+              if (isFinite(aggVal)) {
+                sum += aggVal;
+                return count++;
+              }
+            });
+            if (count === 0) {
+              return null;
+            } else {
+              return sum / count;
+            }
+          }
+        };
+      }
+    };
     aggregatorTemplates = {
       count: function(formatter) {
         if (formatter == null) {
@@ -358,7 +418,7 @@
               format: formatter,
               value: function() {
                 var agg;
-                agg = data.getAggregator.apply(data, this.selector);
+                agg = data.getAggregator.apply(data, slice.call(this.selector).concat([true]));
                 if ($.isArray(agg)) {
                   agg = agg[aggIdx];
                 }
@@ -677,6 +737,9 @@
             return agg(_this, [], []);
           };
         })(this));
+        this.metaAggRowTotals = {};
+        this.metaAggColTotals = {};
+        this.metaAggAllTotal = null;
         this.sorted = false;
         this.opts = opts;
         PivotData.forEachRecord(input, opts, (function(_this) {
@@ -950,16 +1013,20 @@
         }
       };
 
-      PivotData.prototype.getAggregator = function(rowKey, colKey) {
-        var agg, flatColKey, flatRowKey;
+      PivotData.prototype.getAggregator = function(rowKey, colKey, forceDefaultTotalsAgg) {
+        var agg, flatColKey, flatRowKey, getMetaAgg;
+        if (forceDefaultTotalsAgg == null) {
+          forceDefaultTotalsAgg = false;
+        }
         flatRowKey = rowKey.join(FLAT_KEY_DELIM);
         flatColKey = colKey.join(FLAT_KEY_DELIM);
+        getMetaAgg = this.opts.totalsMetaAggregator && !forceDefaultTotalsAgg;
         if (rowKey.length === 0 && colKey.length === 0) {
-          agg = this.allTotal;
+          agg = getMetaAgg ? this.metaAggAllTotal : this.allTotal;
         } else if (rowKey.length === 0) {
-          agg = this.colTotals[flatColKey];
+          agg = (getMetaAgg ? this.metaAggColTotals : this.colTotals)[flatColKey];
         } else if (colKey.length === 0) {
-          agg = this.rowTotals[flatRowKey];
+          agg = (getMetaAgg ? this.metaAggRowTotals : this.rowTotals)[flatRowKey];
         } else {
           agg = this.tree[flatRowKey][flatColKey];
         }
@@ -983,6 +1050,7 @@
     $.pivotUtilities = {
       aggregatorTemplates: aggregatorTemplates,
       aggregators: aggregators,
+      metaAggregators: metaAggregators,
       renderers: renderers,
       derivers: derivers,
       locales: locales,
@@ -996,7 +1064,62 @@
     Default Renderer for hierarchical table layout
      */
     pivotTableRenderer = function(pivotData, opts, rendererType) {
-      var agg, aggIdx, aggregator, colAttr, colAttrIdx, colAttrs, colKey, colKeyIdx, colKeys, createHeader, createTotalsCell, createTotalsRow, defaults, flatColKey, flatRowKey, getClickHandler, getHeaderClickHandler, heatmappers, i, l, len1, len2, len3, len4, len5, len6, len7, len8, n, o, ref, ref1, ref2, ref3, result, rowAttr, rowAttrIdx, rowAttrs, rowKey, rowKeyIdx, rowKeys, scalers, spanSize, t, tbody, td, th, thead, totalAggregator, tr, txt, u, val, valueRanges, w, x, y, z;
+      var agg, aggIdx, aggregator, colAttr, colAttrIdx, colAttrs, colKey, colKeyIdx, colKeys, createHeader, createTotalsCell, createTotalsRow, defaults, flatColKey, flatKey, flatRowKey, getClickHandler, getHeaderClickHandler, heatmappers, i, i1, idx, j1, k1, l, len1, len10, len11, len2, len3, len4, len5, len6, len7, len8, len9, metaAggTotals, n, o, part, ref, ref1, ref2, ref3, ref4, ref5, ref6, ref7, ref8, result, row, rowAttr, rowAttrIdx, rowAttrs, rowKey, rowKeyIdx, rowKeys, scalers, spanSize, t, tbody, td, th, thead, totalAggregator, totals, tr, txt, u, val, valueRanges, w, x, y, z;
+      if (pivotData.opts.totalsMetaAggregator) {
+        ref = pivotData.tree;
+        for (flatRowKey in ref) {
+          if (!hasProp.call(ref, flatRowKey)) continue;
+          row = ref[flatRowKey];
+          for (flatColKey in row) {
+            if (!hasProp.call(row, flatColKey)) continue;
+            aggregator = row[flatColKey];
+            ref1 = [[pivotData.rowTotals, pivotData.metaAggRowTotals, flatRowKey], [pivotData.colTotals, pivotData.metaAggColTotals, flatColKey]];
+            for (l = 0, len1 = ref1.length; l < len1; l++) {
+              ref2 = ref1[l], totals = ref2[0], metaAggTotals = ref2[1], flatKey = ref2[2];
+              if (!$.isArray(totals[flatKey])) {
+                if (!(flatKey in metaAggTotals)) {
+                  metaAggTotals[flatKey] = pivotData.opts.totalsMetaAggregator();
+                }
+                metaAggTotals[flatKey].push(aggregator);
+              } else {
+                if (!(flatKey in metaAggTotals)) {
+                  metaAggTotals[flatKey] = totals[flatKey].map(function() {
+                    return pivotData.opts.totalsMetaAggregator();
+                  });
+                }
+                ref3 = flatColKey.split(FLAT_KEY_DELIM);
+                for (n = 0, len2 = ref3.length; n < len2; n++) {
+                  part = ref3[n];
+                  idx = parseInt(part);
+                  if (!isNaN(idx)) {
+                    metaAggTotals[flatKey][idx].push(aggregator);
+                  }
+                }
+              }
+              if (!$.isArray(pivotData.allTotal)) {
+                if (pivotData.metaAggAllTotal === null) {
+                  pivotData.metaAggAllTotal = pivotData.opts.totalsMetaAggregator();
+                }
+                pivotData.metaAggAllTotal.push(aggregator);
+              } else {
+                if (!pivotData.metaAggAllTotal) {
+                  pivotData.metaAggAllTotal = pivotData.allTotal.map(function() {
+                    return pivotData.opts.totalsMetaAggregator();
+                  });
+                }
+                ref4 = flatKey.split(FLAT_KEY_DELIM);
+                for (o = 0, len3 = ref4.length; o < len3; o++) {
+                  part = ref4[o];
+                  idx = parseInt(part);
+                  if (!isNaN(idx)) {
+                    pivotData.metaAggAllTotal[idx].push(aggregator);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
       defaults = {
         table: {
           clickCallback: null
@@ -1013,18 +1136,18 @@
       colKeys = pivotData.getColKeys();
       if (opts.table.clickCallback) {
         getClickHandler = function(value, rowKey, colKey, aggIdx) {
-          var attr, filters, i, l, len1, len2, n;
+          var attr, filters, i, len4, len5, t, u;
           if (aggIdx == null) {
             aggIdx = null;
           }
           filters = {};
-          for (i = l = 0, len1 = colAttrs.length; l < len1; i = ++l) {
+          for (i = t = 0, len4 = colAttrs.length; t < len4; i = ++t) {
             attr = colAttrs[i];
             if (colKey[i] != null) {
               filters[attr] = colKey[i];
             }
           }
-          for (i = n = 0, len2 = rowAttrs.length; n < len2; i = ++n) {
+          for (i = u = 0, len5 = rowAttrs.length; u < len5; i = ++u) {
             attr = rowAttrs[i];
             if (rowKey[i] != null) {
               filters[attr] = rowKey[i];
@@ -1056,10 +1179,10 @@
       result = document.createElement("table");
       result.className = "pvtTable";
       spanSize = function(keys, keyIdx, maxAttrIdx) {
-        var attrIdx, l, len, n, noDraw, ref, ref1, stop;
+        var attrIdx, len, noDraw, ref5, ref6, stop, t, u;
         if (keyIdx !== 0) {
           noDraw = true;
-          for (attrIdx = l = 0, ref = maxAttrIdx; 0 <= ref ? l <= ref : l >= ref; attrIdx = 0 <= ref ? ++l : --l) {
+          for (attrIdx = t = 0, ref5 = maxAttrIdx; 0 <= ref5 ? t <= ref5 : t >= ref5; attrIdx = 0 <= ref5 ? ++t : --t) {
             if (keys[keyIdx - 1][attrIdx] !== keys[keyIdx][attrIdx]) {
               noDraw = false;
             }
@@ -1071,7 +1194,7 @@
         len = 0;
         while (keyIdx + len < keys.length) {
           stop = false;
-          for (attrIdx = n = 0, ref1 = maxAttrIdx; 0 <= ref1 ? n <= ref1 : n >= ref1; attrIdx = 0 <= ref1 ? ++n : --n) {
+          for (attrIdx = u = 0, ref6 = maxAttrIdx; 0 <= ref6 ? u <= ref6 : u >= ref6; attrIdx = 0 <= ref6 ? ++u : --u) {
             if (keys[keyIdx][attrIdx] !== keys[keyIdx + len][attrIdx]) {
               stop = true;
             }
@@ -1084,7 +1207,7 @@
         return len;
       };
       thead = document.createElement("thead");
-      for (colAttrIdx = l = 0, len1 = colAttrs.length; l < len1; colAttrIdx = ++l) {
+      for (colAttrIdx = t = 0, len4 = colAttrs.length; t < len4; colAttrIdx = ++t) {
         colAttr = colAttrs[colAttrIdx];
         tr = document.createElement("tr");
         if (parseInt(colAttrIdx) === 0 && rowAttrs.length !== 0) {
@@ -1100,7 +1223,7 @@
           th.onclick = getHeaderClickHandler("col", "attr", colAttr);
         }
         tr.appendChild(th);
-        for (colKeyIdx = n = 0, len2 = colKeys.length; n < len2; colKeyIdx = ++n) {
+        for (colKeyIdx = u = 0, len5 = colKeys.length; u < len5; colKeyIdx = ++u) {
           colKey = colKeys[colKeyIdx];
           x = spanSize(colKeys, parseInt(colKeyIdx), parseInt(colAttrIdx));
           if (x !== -1) {
@@ -1137,11 +1260,11 @@
             }
             return tr.appendChild(th);
           };
-          if ($.isArray(pivotData.aggregator) && (ref = pivotData.multiAggAttr, indexOf.call(colAttrs, ref) >= 0)) {
+          if ($.isArray(pivotData.aggregator) && (ref5 = pivotData.multiAggAttr, indexOf.call(colAttrs, ref5) >= 0)) {
             if (colAttrs.length > 1) {
-              ref1 = pivotData.aggregator;
-              for (aggIdx = o = 0, len3 = ref1.length; o < len3; aggIdx = ++o) {
-                agg = ref1[aggIdx];
+              ref6 = pivotData.aggregator;
+              for (aggIdx = w = 0, len6 = ref6.length; w < len6; aggIdx = ++w) {
+                agg = ref6[aggIdx];
                 createHeader(aggIdx);
               }
             }
@@ -1153,7 +1276,7 @@
       }
       if (rowAttrs.length !== 0) {
         tr = document.createElement("tr");
-        for (i = t = 0, len4 = rowAttrs.length; t < len4; i = ++t) {
+        for (i = y = 0, len7 = rowAttrs.length; y < len7; i = ++y) {
           rowAttr = rowAttrs[i];
           th = document.createElement("th");
           th.className = "pvtAxisLabel";
@@ -1176,7 +1299,7 @@
       }
       result.appendChild(thead);
       tbody = document.createElement("tbody");
-      for (rowKeyIdx = u = 0, len5 = rowKeys.length; u < len5; rowKeyIdx = ++u) {
+      for (rowKeyIdx = z = 0, len8 = rowKeys.length; z < len8; rowKeyIdx = ++z) {
         rowKey = rowKeys[rowKeyIdx];
         tr = document.createElement("tr");
         for (rowAttrIdx in rowKey) {
@@ -1203,7 +1326,7 @@
             tr.appendChild(th);
           }
         }
-        for (colKeyIdx = w = 0, len6 = colKeys.length; w < len6; colKeyIdx = ++w) {
+        for (colKeyIdx = i1 = 0, len9 = colKeys.length; i1 < len9; colKeyIdx = ++i1) {
           colKey = colKeys[colKeyIdx];
           aggregator = pivotData.getAggregator(rowKey, colKey);
           val = aggregator.value();
@@ -1246,7 +1369,7 @@
         totalAggregator = pivotData.getAggregator(rowKey, []);
         if ($.isArray(totalAggregator)) {
           if (colAttrs.length > 1) {
-            for (aggIdx = y = 0, len7 = totalAggregator.length; y < len7; aggIdx = ++y) {
+            for (aggIdx = j1 = 0, len10 = totalAggregator.length; j1 < len10; aggIdx = ++j1) {
               agg = totalAggregator[aggIdx];
               createTotalsCell(agg, aggIdx);
             }
@@ -1257,7 +1380,7 @@
         tbody.appendChild(tr);
       }
       createTotalsRow = function(aggIdx) {
-        var createGrandTotalCell, i1, len8, len9, z;
+        var createGrandTotalCell, k1, l1, len11, len12;
         tr = document.createElement("tr");
         th = document.createElement("th");
         th.className = "pvtTotalLabel pvtColTotalLabel";
@@ -1270,7 +1393,7 @@
           th.onclick = getHeaderClickHandler("row", "totals", aggIdx || 0);
         }
         tr.appendChild(th);
-        for (colKeyIdx = z = 0, len8 = colKeys.length; z < len8; colKeyIdx = ++z) {
+        for (colKeyIdx = k1 = 0, len11 = colKeys.length; k1 < len11; colKeyIdx = ++k1) {
           colKey = colKeys[colKeyIdx];
           totalAggregator = pivotData.getAggregator([], colKey);
           if (aggIdx != null) {
@@ -1308,7 +1431,7 @@
           createGrandTotalCell(totalAggregator[aggIdx]);
         } else {
           if (colAttrs.length > 1) {
-            for (aggIdx = i1 = 0, len9 = totalAggregator.length; i1 < len9; aggIdx = ++i1) {
+            for (aggIdx = l1 = 0, len12 = totalAggregator.length; l1 < len12; aggIdx = ++l1) {
               agg = totalAggregator[aggIdx];
               createGrandTotalCell(agg, aggIdx);
             }
@@ -1316,11 +1439,11 @@
         }
         return tbody.appendChild(tr);
       };
-      if ($.isArray(pivotData.aggregator) && (ref2 = pivotData.multiAggAttr, indexOf.call(rowAttrs, ref2) >= 0)) {
+      if ($.isArray(pivotData.aggregator) && (ref7 = pivotData.multiAggAttr, indexOf.call(rowAttrs, ref7) >= 0)) {
         if (rowAttrs.length > 1) {
-          ref3 = pivotData.aggregator;
-          for (aggIdx = z = 0, len8 = ref3.length; z < len8; aggIdx = ++z) {
-            agg = ref3[aggIdx];
+          ref8 = pivotData.aggregator;
+          for (aggIdx = k1 = 0, len11 = ref8.length; k1 < len11; aggIdx = ++k1) {
+            agg = ref8[aggIdx];
             createTotalsRow(aggIdx);
           }
         }

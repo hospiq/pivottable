@@ -38,6 +38,37 @@ callWithJQuery ($) ->
     usFmtInt = numberFormat(digitsAfterDecimal: 0)
     usFmtPct = numberFormat(digitsAfterDecimal:1, scaler: 100, suffix: "%")
 
+    #these are aggregators of aggregators; push aggregators on, and the value is an aggregation of their values
+    metaAggregators =
+        sum: () ->
+            aggregators: new Set()
+            push: (aggregator) -> @aggregators.add(aggregator)
+            format: (val) -> Array.from(@aggregators)[0].format(val)
+            value: ->
+                sum = null
+                @aggregators.forEach (agg) ->
+                    aggVal = agg.value()
+                    if isFinite(aggVal)
+                        sum = if sum == null then aggVal else sum + aggVal
+                return sum
+
+        avg: () ->
+            aggregators: new Set()
+            push: (aggregator) -> @aggregators.add(aggregator)
+            format: (val) ->
+                # If the original format was a percent, then keep it; otherwise format as a float
+                formatted = Array.from(@aggregators)[0].format(val)
+                return if formatted.startsWith('%') then formatted else usFmt(val)
+            value: ->
+                sum = 0
+                count = 0
+                @aggregators.forEach (agg) ->
+                    aggVal = agg.value()
+                    if isFinite(aggVal)
+                        sum += aggVal
+                        count++
+                return if count == 0 then null else sum / count
+
     aggregatorTemplates =
         count: (formatter=usFmtInt) -> () -> (data, rowKey, colKey) ->
             count: 0
@@ -145,7 +176,7 @@ callWithJQuery ($) ->
             push: (record) -> @inner.push record
             format: formatter
             value: ->
-                agg = data.getAggregator(@selector...)
+                agg = data.getAggregator(@selector..., true)
                 if $.isArray(agg)
                     agg = agg[aggIdx]
                 return @inner.value() / agg.inner.value()
@@ -362,6 +393,11 @@ callWithJQuery ($) ->
             #Grand total aggregator. In multi-metric mode, this is an array.
             @allTotal = if not $.isArray(@aggregator) then @aggregator(this, [], []) else @aggregator.map((agg) => agg(this, [], []))
 
+            #Same as above, used only when meta-aggregator is provided
+            @metaAggRowTotals = {}
+            @metaAggColTotals = {}
+            @metaAggAllTotal = null
+
             #Keys are not sorted on init, but when first accessed (e.g. in getRowKeys()).
             @sorted = false
 
@@ -561,22 +597,23 @@ callWithJQuery ($) ->
                 @tree[flatRowKey][flatColKey].push record
 
         #In multi-metric mode, totals aggregators are arrays.
-        getAggregator: (rowKey, colKey) =>
+        getAggregator: (rowKey, colKey, forceDefaultTotalsAgg= false) =>
             flatRowKey = rowKey.join(FLAT_KEY_DELIM)
             flatColKey = colKey.join(FLAT_KEY_DELIM)
+            getMetaAgg = @opts.totalsMetaAggregator and not forceDefaultTotalsAgg
             if rowKey.length == 0 and colKey.length == 0
-                agg = @allTotal
+                agg = if getMetaAgg then @metaAggAllTotal else @allTotal
             else if rowKey.length == 0
-                agg = @colTotals[flatColKey]
+                agg = (if getMetaAgg then @metaAggColTotals else @colTotals)[flatColKey]
             else if colKey.length == 0
-                agg = @rowTotals[flatRowKey]
+                agg = (if getMetaAgg then @metaAggRowTotals else @rowTotals)[flatRowKey]
             else
                 agg = @tree[flatRowKey][flatColKey]
             #In multi-metric mode, don't bother creating default aggregators.
             return if $.isArray(agg) then agg else (agg ? {value: (-> null), format: -> ""})
 
     #expose these to the outside world
-    $.pivotUtilities = {aggregatorTemplates, aggregators, renderers, derivers, locales,
+    $.pivotUtilities = {aggregatorTemplates, aggregators, metaAggregators, renderers, derivers, locales,
         naturalSort, numberFormat, sortAs, PivotData}
 
     ###
@@ -584,6 +621,40 @@ callWithJQuery ($) ->
     ###
 
     pivotTableRenderer = (pivotData, opts, rendererType) ->
+        #If we've been asked to generate the totals from a meta-aggregator, walk the data tree here and do that
+        if pivotData.opts.totalsMetaAggregator
+            for own flatRowKey, row of pivotData.tree
+                for own flatColKey, aggregator of row
+                    for [totals, metaAggTotals, flatKey] in [
+                        [pivotData.rowTotals, pivotData.metaAggRowTotals, flatRowKey],
+                        [pivotData.colTotals, pivotData.metaAggColTotals, flatColKey]
+                    ]
+                        #Row/col meta-aggregators
+                        if not $.isArray(totals[flatKey])
+                            if flatKey not of metaAggTotals
+                                metaAggTotals[flatKey] = pivotData.opts.totalsMetaAggregator()
+                            metaAggTotals[flatKey].push(aggregator)
+                        else
+                            if flatKey not of metaAggTotals
+                                metaAggTotals[flatKey] = totals[flatKey].map -> pivotData.opts.totalsMetaAggregator()
+                            for part in flatColKey.split(FLAT_KEY_DELIM)
+                                idx = parseInt(part)
+                                if not isNaN(idx)
+                                    metaAggTotals[flatKey][idx].push(aggregator)
+
+                        #Grand total meta-aggregator gets all aggregators, but may be an array if multi-metrics mode
+                        if not $.isArray(pivotData.allTotal)
+                            if pivotData.metaAggAllTotal == null
+                                pivotData.metaAggAllTotal = pivotData.opts.totalsMetaAggregator()
+                            pivotData.metaAggAllTotal.push(aggregator)
+                        else
+                            if not pivotData.metaAggAllTotal
+                                pivotData.metaAggAllTotal = pivotData.allTotal.map -> pivotData.opts.totalsMetaAggregator()
+                            for part in flatKey.split(FLAT_KEY_DELIM)
+                                idx = parseInt(part)
+                                if not isNaN(idx)
+                                    pivotData.metaAggAllTotal[idx].push(aggregator)
+
         defaults =
             table: clickCallback: null
             localeStrings: totals: "Totals"
