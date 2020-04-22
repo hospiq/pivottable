@@ -41,33 +41,37 @@ callWithJQuery ($) ->
     #these are aggregators of aggregators; push aggregators on, and the value is an aggregation of their values
     metaAggregators =
         sum: () ->
-            aggregators: new Set()
-            push: (aggregator) -> @aggregators.add(aggregator)
-            format: (val) -> Array.from(@aggregators)[0].format(val)
-            value: ->
-                sum = null
-                @aggregators.forEach (agg) ->
-                    aggVal = agg.value()
-                    if isFinite(aggVal)
-                        sum = if sum == null then aggVal else sum + aggVal
-                return sum
+            () ->
+                aggregators: new Set()
+                push: (aggregator) -> @aggregators.add(aggregator)
+                format: (val) -> Array.from(@aggregators)[0].format(val) #always format same as sub-aggregators
+                value: ->
+                    sum = null
+                    @aggregators.forEach (agg) ->
+                        aggVal = agg.value()
+                        if isFinite(aggVal)
+                            sum = if sum == null then aggVal else sum + aggVal
+                    return sum
 
-        avg: () ->
-            aggregators: new Set()
-            push: (aggregator) -> @aggregators.add(aggregator)
-            format: (val) ->
-                # If the original format was a percent, then keep it; otherwise format as a float
-                formatted = Array.from(@aggregators)[0].format(val)
-                return if formatted.startsWith('%') then formatted else usFmt(val)
-            value: ->
-                sum = 0
-                count = 0
-                @aggregators.forEach (agg) ->
-                    aggVal = agg.value()
-                    if isFinite(aggVal)
-                        sum += aggVal
-                        count++
-                return if count == 0 then null else sum / count
+        avg: (keepFormatters, fallbackFormatter) ->
+            () ->
+                aggregators: new Set()
+                push: (aggregator) -> @aggregators.add(aggregator)
+                format: (val) ->
+                    #If the original format is in the list of keep formatters, then keep it; otherwise use fallback
+                    subAggFormatter = Array.from(@aggregators)[0].format
+                    formatter = if subAggFormatter in keepFormatters then subAggFormatter else fallbackFormatter
+                    return formatter(val)
+                value: ->
+                    sum = 0
+                    count = 0
+                    @aggregators.forEach (agg) ->
+                        aggVal = agg.value()
+                        #`isFinite(null)` is true; `Number.isFinite(null)` is false
+                        if Number.isFinite(aggVal)
+                            sum += aggVal
+                            count++
+                    return if count == 0 then null else sum / count
 
     aggregatorTemplates =
         count: (formatter=usFmtInt) -> () -> (data, rowKey, colKey) ->

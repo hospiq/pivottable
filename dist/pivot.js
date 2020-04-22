@@ -64,61 +64,62 @@
     });
     metaAggregators = {
       sum: function() {
-        return {
-          aggregators: new Set(),
-          push: function(aggregator) {
-            return this.aggregators.add(aggregator);
-          },
-          format: function(val) {
-            return Array.from(this.aggregators)[0].format(val);
-          },
-          value: function() {
-            var sum;
-            sum = null;
-            this.aggregators.forEach(function(agg) {
-              var aggVal;
-              aggVal = agg.value();
-              if (isFinite(aggVal)) {
-                return sum = sum === null ? aggVal : sum + aggVal;
-              }
-            });
-            return sum;
-          }
+        return function() {
+          return {
+            aggregators: new Set(),
+            push: function(aggregator) {
+              return this.aggregators.add(aggregator);
+            },
+            format: function(val) {
+              return Array.from(this.aggregators)[0].format(val);
+            },
+            value: function() {
+              var sum;
+              sum = null;
+              this.aggregators.forEach(function(agg) {
+                var aggVal;
+                aggVal = agg.value();
+                if (isFinite(aggVal)) {
+                  return sum = sum === null ? aggVal : sum + aggVal;
+                }
+              });
+              return sum;
+            }
+          };
         };
       },
-      avg: function() {
-        return {
-          aggregators: new Set(),
-          push: function(aggregator) {
-            return this.aggregators.add(aggregator);
-          },
-          format: function(val) {
-            var formatted;
-            formatted = Array.from(this.aggregators)[0].format(val);
-            if (formatted.startsWith('%')) {
-              return formatted;
-            } else {
-              return usFmt(val);
-            }
-          },
-          value: function() {
-            var count, sum;
-            sum = 0;
-            count = 0;
-            this.aggregators.forEach(function(agg) {
-              var aggVal;
-              aggVal = agg.value();
-              if (isFinite(aggVal)) {
-                sum += aggVal;
-                return count++;
+      avg: function(keepFormatters, fallbackFormatter) {
+        return function() {
+          return {
+            aggregators: new Set(),
+            push: function(aggregator) {
+              return this.aggregators.add(aggregator);
+            },
+            format: function(val) {
+              var formatter, subAggFormatter;
+              subAggFormatter = Array.from(this.aggregators)[0].format;
+              formatter = indexOf.call(keepFormatters, subAggFormatter) >= 0 ? subAggFormatter : fallbackFormatter;
+              return formatter(val);
+            },
+            value: function() {
+              var count, sum;
+              sum = 0;
+              count = 0;
+              this.aggregators.forEach(function(agg) {
+                var aggVal;
+                aggVal = agg.value();
+                if (Number.isFinite(aggVal)) {
+                  sum += aggVal;
+                  return count++;
+                }
+              });
+              if (count === 0) {
+                return null;
+              } else {
+                return sum / count;
               }
-            });
-            if (count === 0) {
-              return null;
-            } else {
-              return sum / count;
             }
-          }
+          };
         };
       }
     };
