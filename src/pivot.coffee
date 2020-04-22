@@ -625,9 +625,9 @@ callWithJQuery ($) ->
         if pivotData.opts.totalsMetaAggregator
             for own flatRowKey, row of pivotData.tree
                 for own flatColKey, aggregator of row
-                    for [totals, metaAggTotals, flatKey] in [
-                        [pivotData.rowTotals, pivotData.metaAggRowTotals, flatRowKey],
-                        [pivotData.colTotals, pivotData.metaAggColTotals, flatColKey]
+                    for [totals, metaAggTotals, oppAttrs, flatKey, oppKey] in [
+                        [pivotData.rowTotals, pivotData.metaAggRowTotals, pivotData.colAttrs, flatRowKey, flatColKey],
+                        [pivotData.colTotals, pivotData.metaAggColTotals, pivotData.rowAttrs, flatColKey, flatRowKey]
                     ]
                         #Row/col meta-aggregators
                         if not $.isArray(totals[flatKey])
@@ -637,10 +637,10 @@ callWithJQuery ($) ->
                         else
                             if flatKey not of metaAggTotals
                                 metaAggTotals[flatKey] = totals[flatKey].map -> pivotData.opts.totalsMetaAggregator()
-                            for part in flatColKey.split(FLAT_KEY_DELIM)
-                                idx = parseInt(part)
-                                if not isNaN(idx)
-                                    metaAggTotals[flatKey][idx].push(aggregator)
+                            metricIdxLoc = oppAttrs.indexOf(pivotData.multiAggAttr)
+                            if metricIdxLoc >= 0
+                                idx = parseInt(oppKey.split(FLAT_KEY_DELIM)[metricIdxLoc])
+                                metaAggTotals[flatKey][idx].push(aggregator)
 
                         #Grand total meta-aggregator gets all aggregators, but may be an array if multi-metrics mode
                         if not $.isArray(pivotData.allTotal)
@@ -650,10 +650,10 @@ callWithJQuery ($) ->
                         else
                             if not pivotData.metaAggAllTotal
                                 pivotData.metaAggAllTotal = pivotData.allTotal.map -> pivotData.opts.totalsMetaAggregator()
-                            for part in flatKey.split(FLAT_KEY_DELIM)
-                                idx = parseInt(part)
-                                if not isNaN(idx)
-                                    pivotData.metaAggAllTotal[idx].push(aggregator)
+                            metricIdxLoc = oppAttrs.indexOf(pivotData.multiAggAttr)
+                            if metricIdxLoc >= 0
+                                idx = parseInt(oppKey.split(FLAT_KEY_DELIM)[metricIdxLoc])
+                                pivotData.metaAggAllTotal[idx].push(aggregator)
 
         defaults =
             table: clickCallback: null
