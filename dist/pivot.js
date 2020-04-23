@@ -20,7 +20,7 @@
     /*
     Utilities
      */
-    var FLAT_KEY_DELIM, PivotData, addSeparators, aggregatorTemplates, aggregators, calculateValueRanges, convertToBarchart, dayNamesEn, derivers, generateBarchartScalers, generateHeatmappers, getSort, locales, metaAggregators, mthNamesEn, naturalSort, numberFormat, pivotTableRenderer, rd, renderers, rx, rz, sortAs, usFmt, usFmtInt, usFmtPct, zeroPad;
+    var FLAT_KEY_DELIM, PivotData, addSeparators, aggregatorTemplates, aggregators, calculateValueRanges, convertToBarchart, dayNamesEn, derivers, generateBarchartScalers, generateHeatmappers, getSort, locales, mthNamesEn, naturalSort, numberFormat, pivotTableRenderer, rd, renderers, rx, rz, sortAs, usFmt, usFmtInt, usFmtPct, zeroPad;
     addSeparators = function(nStr, thousandsSep, decimalSep) {
       var rgx, x, x1, x2;
       nStr += '';
@@ -62,67 +62,6 @@
       scaler: 100,
       suffix: "%"
     });
-    metaAggregators = {
-      sum: function() {
-        return function() {
-          return {
-            aggregators: new Set(),
-            push: function(aggregator) {
-              return this.aggregators.add(aggregator);
-            },
-            format: function(val) {
-              return Array.from(this.aggregators)[0].format(val);
-            },
-            value: function() {
-              var sum;
-              sum = null;
-              this.aggregators.forEach(function(agg) {
-                var aggVal;
-                aggVal = agg.value();
-                if (isFinite(aggVal)) {
-                  return sum = sum === null ? aggVal : sum + aggVal;
-                }
-              });
-              return sum;
-            }
-          };
-        };
-      },
-      avg: function(keepFormatters, fallbackFormatter) {
-        return function() {
-          return {
-            aggregators: new Set(),
-            push: function(aggregator) {
-              return this.aggregators.add(aggregator);
-            },
-            format: function(val) {
-              var formatter, subAggFormatter;
-              subAggFormatter = Array.from(this.aggregators)[0].format;
-              formatter = indexOf.call(keepFormatters, subAggFormatter) >= 0 ? subAggFormatter : fallbackFormatter;
-              return formatter(val);
-            },
-            value: function() {
-              var count, sum;
-              sum = 0;
-              count = 0;
-              this.aggregators.forEach(function(agg) {
-                var aggVal;
-                aggVal = agg.value();
-                if (Number.isFinite(aggVal)) {
-                  sum += aggVal;
-                  return count++;
-                }
-              });
-              if (count === 0) {
-                return null;
-              } else {
-                return sum / count;
-              }
-            }
-          };
-        };
-      }
-    };
     aggregatorTemplates = {
       count: function(formatter) {
         if (formatter == null) {
@@ -1051,7 +990,6 @@
     $.pivotUtilities = {
       aggregatorTemplates: aggregatorTemplates,
       aggregators: aggregators,
-      metaAggregators: metaAggregators,
       renderers: renderers,
       derivers: derivers,
       locales: locales,
@@ -1089,10 +1027,8 @@
                   });
                 }
                 metricIdxLoc = oppAttrs.indexOf(pivotData.multiAggAttr);
-                if (metricIdxLoc >= 0) {
-                  idx = parseInt(oppKey.split(FLAT_KEY_DELIM)[metricIdxLoc]);
-                  metaAggTotals[flatKey][idx].push(aggregator);
-                }
+                idx = parseInt(oppKey.split(FLAT_KEY_DELIM)[metricIdxLoc]);
+                metaAggTotals[flatKey][idx].push(aggregator);
               }
               if (!$.isArray(pivotData.allTotal)) {
                 if (pivotData.metaAggAllTotal === null) {
@@ -1106,10 +1042,8 @@
                   });
                 }
                 metricIdxLoc = oppAttrs.indexOf(pivotData.multiAggAttr);
-                if (metricIdxLoc >= 0) {
-                  idx = parseInt(oppKey.split(FLAT_KEY_DELIM)[metricIdxLoc]);
-                  pivotData.metaAggAllTotal[idx].push(aggregator);
-                }
+                idx = parseInt(oppKey.split(FLAT_KEY_DELIM)[metricIdxLoc]);
+                pivotData.metaAggAllTotal[idx].push(aggregator);
               }
             }
           }

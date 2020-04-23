@@ -38,41 +38,6 @@ callWithJQuery ($) ->
     usFmtInt = numberFormat(digitsAfterDecimal: 0)
     usFmtPct = numberFormat(digitsAfterDecimal:1, scaler: 100, suffix: "%")
 
-    #these are aggregators of aggregators; push aggregators on, and the value is an aggregation of their values
-    metaAggregators =
-        sum: () ->
-            () ->
-                aggregators: new Set()
-                push: (aggregator) -> @aggregators.add(aggregator)
-                format: (val) -> Array.from(@aggregators)[0].format(val) #always format same as sub-aggregators
-                value: ->
-                    sum = null
-                    @aggregators.forEach (agg) ->
-                        aggVal = agg.value()
-                        if isFinite(aggVal)
-                            sum = if sum == null then aggVal else sum + aggVal
-                    return sum
-
-        avg: (keepFormatters, fallbackFormatter) ->
-            () ->
-                aggregators: new Set()
-                push: (aggregator) -> @aggregators.add(aggregator)
-                format: (val) ->
-                    #If the original format is in the list of keep formatters, then keep it; otherwise use fallback
-                    subAggFormatter = Array.from(@aggregators)[0].format
-                    formatter = if subAggFormatter in keepFormatters then subAggFormatter else fallbackFormatter
-                    return formatter(val)
-                value: ->
-                    sum = 0
-                    count = 0
-                    @aggregators.forEach (agg) ->
-                        aggVal = agg.value()
-                        #`isFinite(null)` is true; `Number.isFinite(null)` is false
-                        if Number.isFinite(aggVal)
-                            sum += aggVal
-                            count++
-                    return if count == 0 then null else sum / count
-
     aggregatorTemplates =
         count: (formatter=usFmtInt) -> () -> (data, rowKey, colKey) ->
             count: 0
@@ -601,7 +566,7 @@ callWithJQuery ($) ->
                 @tree[flatRowKey][flatColKey].push record
 
         #In multi-metric mode, totals aggregators are arrays.
-        getAggregator: (rowKey, colKey, forceDefaultTotalsAgg= false) =>
+        getAggregator: (rowKey, colKey, forceDefaultTotalsAgg = false) =>
             flatRowKey = rowKey.join(FLAT_KEY_DELIM)
             flatColKey = colKey.join(FLAT_KEY_DELIM)
             getMetaAgg = @opts.totalsMetaAggregator and not forceDefaultTotalsAgg
@@ -617,7 +582,7 @@ callWithJQuery ($) ->
             return if $.isArray(agg) then agg else (agg ? {value: (-> null), format: -> ""})
 
     #expose these to the outside world
-    $.pivotUtilities = {aggregatorTemplates, aggregators, metaAggregators, renderers, derivers, locales,
+    $.pivotUtilities = {aggregatorTemplates, aggregators, renderers, derivers, locales,
         naturalSort, numberFormat, sortAs, PivotData}
 
     ###
@@ -642,9 +607,8 @@ callWithJQuery ($) ->
                             if flatKey not of metaAggTotals
                                 metaAggTotals[flatKey] = totals[flatKey].map -> pivotData.opts.totalsMetaAggregator()
                             metricIdxLoc = oppAttrs.indexOf(pivotData.multiAggAttr)
-                            if metricIdxLoc >= 0
-                                idx = parseInt(oppKey.split(FLAT_KEY_DELIM)[metricIdxLoc])
-                                metaAggTotals[flatKey][idx].push(aggregator)
+                            idx = parseInt(oppKey.split(FLAT_KEY_DELIM)[metricIdxLoc])
+                            metaAggTotals[flatKey][idx].push(aggregator)
 
                         #Grand total meta-aggregator gets all aggregators, but may be an array if multi-metrics mode
                         if not $.isArray(pivotData.allTotal)
@@ -655,9 +619,8 @@ callWithJQuery ($) ->
                             if not pivotData.metaAggAllTotal
                                 pivotData.metaAggAllTotal = pivotData.allTotal.map -> pivotData.opts.totalsMetaAggregator()
                             metricIdxLoc = oppAttrs.indexOf(pivotData.multiAggAttr)
-                            if metricIdxLoc >= 0
-                                idx = parseInt(oppKey.split(FLAT_KEY_DELIM)[metricIdxLoc])
-                                pivotData.metaAggAllTotal[idx].push(aggregator)
+                            idx = parseInt(oppKey.split(FLAT_KEY_DELIM)[metricIdxLoc])
+                            pivotData.metaAggAllTotal[idx].push(aggregator)
 
         defaults =
             table: clickCallback: null
