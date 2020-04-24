@@ -1027,8 +1027,10 @@
                   });
                 }
                 metricIdxLoc = oppAttrs.indexOf(pivotData.multiAggAttr);
-                idx = parseInt(oppKey.split(FLAT_KEY_DELIM)[metricIdxLoc]);
-                metaAggTotals[flatKey][idx].push(aggregator);
+                if (metricIdxLoc >= 0) {
+                  idx = parseInt(oppKey.split(FLAT_KEY_DELIM)[metricIdxLoc]);
+                  metaAggTotals[flatKey][idx].push(aggregator);
+                }
               }
               if (!$.isArray(pivotData.allTotal)) {
                 if (pivotData.metaAggAllTotal === null) {
@@ -1042,8 +1044,10 @@
                   });
                 }
                 metricIdxLoc = oppAttrs.indexOf(pivotData.multiAggAttr);
-                idx = parseInt(oppKey.split(FLAT_KEY_DELIM)[metricIdxLoc]);
-                pivotData.metaAggAllTotal[idx].push(aggregator);
+                if (metricIdxLoc >= 0) {
+                  idx = parseInt(oppKey.split(FLAT_KEY_DELIM)[metricIdxLoc]);
+                  pivotData.metaAggAllTotal[idx].push(aggregator);
+                }
               }
             }
           }

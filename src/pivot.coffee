@@ -607,8 +607,9 @@ callWithJQuery ($) ->
                             if flatKey not of metaAggTotals
                                 metaAggTotals[flatKey] = totals[flatKey].map -> pivotData.opts.totalsMetaAggregator()
                             metricIdxLoc = oppAttrs.indexOf(pivotData.multiAggAttr)
-                            idx = parseInt(oppKey.split(FLAT_KEY_DELIM)[metricIdxLoc])
-                            metaAggTotals[flatKey][idx].push(aggregator)
+                            if metricIdxLoc >= 0
+                                idx = parseInt(oppKey.split(FLAT_KEY_DELIM)[metricIdxLoc])
+                                metaAggTotals[flatKey][idx].push(aggregator)
 
                         #Grand total meta-aggregator gets all aggregators, but may be an array if multi-metrics mode
                         if not $.isArray(pivotData.allTotal)
@@ -619,8 +620,9 @@ callWithJQuery ($) ->
                             if not pivotData.metaAggAllTotal
                                 pivotData.metaAggAllTotal = pivotData.allTotal.map -> pivotData.opts.totalsMetaAggregator()
                             metricIdxLoc = oppAttrs.indexOf(pivotData.multiAggAttr)
-                            idx = parseInt(oppKey.split(FLAT_KEY_DELIM)[metricIdxLoc])
-                            pivotData.metaAggAllTotal[idx].push(aggregator)
+                            if metricIdxLoc >= 0
+                                idx = parseInt(oppKey.split(FLAT_KEY_DELIM)[metricIdxLoc])
+                                pivotData.metaAggAllTotal[idx].push(aggregator)
 
         defaults =
             table: clickCallback: null
