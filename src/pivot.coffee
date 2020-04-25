@@ -581,6 +581,41 @@ callWithJQuery ($) ->
             #In multi-metric mode, don't bother creating default aggregators.
             return if $.isArray(agg) then agg else (agg ? {value: (-> null), format: -> ""})
 
+        populateMetaAggregators: () =>
+            if @opts.totalsMetaAggregator
+                totalsMetaAggregator = @opts.totalsMetaAggregator
+                #Create and populate meta-aggregators for each totals aggregator
+                for own flatRowKey, row of @tree
+                    for own flatColKey, aggregator of row
+                        for [totals, metaAggTotals, oppositeDimAttrs, flatKey, oppositeDimFlatKey] in [
+                            [@rowTotals, @metaAggRowTotals, @colAttrs, flatRowKey, flatColKey],
+                            [@colTotals, @metaAggColTotals, @rowAttrs, flatColKey, flatRowKey]
+                        ]
+                            #Row/col meta-aggregators. Will be an array if in multi-metric mode
+                            if not $.isArray(totals[flatKey])
+                                if flatKey not of metaAggTotals
+                                    metaAggTotals[flatKey] = totalsMetaAggregator()
+                                metaAggTotals[flatKey].push(aggregator)
+                            else
+                                if flatKey not of metaAggTotals
+                                    metaAggTotals[flatKey] = totals[flatKey].   map -> totalsMetaAggregator()
+                                metricIdxLoc = oppositeDimAttrs.indexOf(@multiAggAttr)
+                                idx = parseInt(oppositeDimFlatKey.split(FLAT_KEY_DELIM)[metricIdxLoc])
+                                metaAggTotals[flatKey][idx].push(aggregator)
+
+                        #Grand total meta-aggregator. Also will be an array if in multi-metric mode
+                        if not $.isArray(@allTotal)
+                            if @metaAggAllTotal == null
+                                @metaAggAllTotal = totalsMetaAggregator()
+                            @metaAggAllTotal.push(aggregator)
+                        else
+                            if not @metaAggAllTotal
+                                @metaAggAllTotal = @allTotal.map -> totalsMetaAggregator()
+                            [key, attrs] = if @multiAggAttr in @rowAttrs then [flatRowKey, @rowAttrs] else [flatColKey, @colAttrs]
+                            idx = parseInt(key.split(FLAT_KEY_DELIM)[attrs.indexOf(@multiAggAttr)])
+                            @metaAggAllTotal[idx].push(aggregator)
+
+
     #expose these to the outside world
     $.pivotUtilities = {aggregatorTemplates, aggregators, renderers, derivers, locales,
         naturalSort, numberFormat, sortAs, PivotData}
@@ -590,40 +625,6 @@ callWithJQuery ($) ->
     ###
 
     pivotTableRenderer = (pivotData, opts, rendererType) ->
-        #If we've been asked to generate the totals from a meta-aggregator, walk the data tree here and do that
-        if pivotData.opts.totalsMetaAggregator
-            for own flatRowKey, row of pivotData.tree
-                for own flatColKey, aggregator of row
-                    for [totals, metaAggTotals, oppAttrs, flatKey, oppKey] in [
-                        [pivotData.rowTotals, pivotData.metaAggRowTotals, pivotData.colAttrs, flatRowKey, flatColKey],
-                        [pivotData.colTotals, pivotData.metaAggColTotals, pivotData.rowAttrs, flatColKey, flatRowKey]
-                    ]
-                        #Row/col meta-aggregators
-                        if not $.isArray(totals[flatKey])
-                            if flatKey not of metaAggTotals
-                                metaAggTotals[flatKey] = pivotData.opts.totalsMetaAggregator()
-                            metaAggTotals[flatKey].push(aggregator)
-                        else
-                            if flatKey not of metaAggTotals
-                                metaAggTotals[flatKey] = totals[flatKey].map -> pivotData.opts.totalsMetaAggregator()
-                            metricIdxLoc = oppAttrs.indexOf(pivotData.multiAggAttr)
-                            if metricIdxLoc >= 0
-                                idx = parseInt(oppKey.split(FLAT_KEY_DELIM)[metricIdxLoc])
-                                metaAggTotals[flatKey][idx].push(aggregator)
-
-                        #Grand total meta-aggregator gets all aggregators, but may be an array if multi-metrics mode
-                        if not $.isArray(pivotData.allTotal)
-                            if pivotData.metaAggAllTotal == null
-                                pivotData.metaAggAllTotal = pivotData.opts.totalsMetaAggregator()
-                            pivotData.metaAggAllTotal.push(aggregator)
-                        else
-                            if not pivotData.metaAggAllTotal
-                                pivotData.metaAggAllTotal = pivotData.allTotal.map -> pivotData.opts.totalsMetaAggregator()
-                            metricIdxLoc = oppAttrs.indexOf(pivotData.multiAggAttr)
-                            if metricIdxLoc >= 0
-                                idx = parseInt(oppKey.split(FLAT_KEY_DELIM)[metricIdxLoc])
-                                pivotData.metaAggAllTotal[idx].push(aggregator)
-
         defaults =
             table: clickCallback: null
             localeStrings: totals: "Totals"
@@ -1075,6 +1076,7 @@ callWithJQuery ($) ->
         result = null
         try
             pivotData = if input instanceof opts.dataClass then input else new opts.dataClass(input, opts)
+            pivotData.populateMetaAggregators()
             try
                 result = opts.renderer(pivotData, opts.rendererOptions)
             catch e
