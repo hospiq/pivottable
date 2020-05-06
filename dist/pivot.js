@@ -773,7 +773,16 @@
       };
 
       PivotData.prototype.arrSort = function(attrs, order) {
-        var a, sortersArr;
+        var _getKeyVal, a, sortersArr;
+        _getKeyVal = function(key, attrIdx) {
+          var keyVal;
+          keyVal = key[attrIdx];
+          if (keyVal === this.emptyValue) {
+            return null;
+          } else {
+            return keyVal;
+          }
+        };
         sortersArr = (function() {
           var l, len1, results;
           results = [];
@@ -788,7 +797,7 @@
           for (attrIdx in sortersArr) {
             if (!hasProp.call(sortersArr, attrIdx)) continue;
             sorter = sortersArr[attrIdx];
-            comparison = sorter(keyA[attrIdx], keyB[attrIdx]);
+            comparison = sorter(_getKeyVal(keyA, attrIdx), _getKeyVal(keyB, attrIdx));
             if ((order != null) && order[attrIdx] === "-") {
               comparison *= -1;
             }
@@ -825,7 +834,7 @@
                 return agg.value();
               };
               return keys.sort(function(a, b) {
-                return naturalSort(_getVal(a), _getVal(b)) * (isDesc ? -1 : 1);
+                return getSort(_this.sorters, null)(_getVal(a), _getVal(b)) * (isDesc ? -1 : 1);
               });
             };
           })(this);
