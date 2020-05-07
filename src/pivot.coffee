@@ -422,7 +422,7 @@ callWithJQuery ($) ->
         #  indicates a descending sort.
         arrSort: (attrs, order) =>
             # Convert empty value string back to null so it may be compared naturally to other values.
-            _getKeyVal = (key, attrIdx) ->
+            _getKeyVal = (key, attrIdx) =>
                 keyVal = key[attrIdx]
                 return if keyVal == @emptyValue then null else keyVal
 

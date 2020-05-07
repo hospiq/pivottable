@@ -774,15 +774,17 @@
 
       PivotData.prototype.arrSort = function(attrs, order) {
         var _getKeyVal, a, sortersArr;
-        _getKeyVal = function(key, attrIdx) {
-          var keyVal;
-          keyVal = key[attrIdx];
-          if (keyVal === this.emptyValue) {
-            return null;
-          } else {
-            return keyVal;
-          }
-        };
+        _getKeyVal = (function(_this) {
+          return function(key, attrIdx) {
+            var keyVal;
+            keyVal = key[attrIdx];
+            if (keyVal === _this.emptyValue) {
+              return null;
+            } else {
+              return keyVal;
+            }
+          };
+        })(this);
         sortersArr = (function() {
           var l, len1, results;
           results = [];
