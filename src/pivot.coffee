@@ -422,14 +422,12 @@ callWithJQuery ($) ->
         #  indicates a descending sort.
         arrSort: (attrs, order) =>
             # Convert empty value string back to null so it may be compared naturally to other values.
-            _getKeyVal = (key, attrIdx) =>
-                keyVal = key[attrIdx]
-                return if keyVal == @emptyValue then null else keyVal
+            _convertBlankToNull = (attrVal) => return if attrVal == @emptyValue then null else attrVal
 
             sortersArr = (getSort(@sorters, a) for a in attrs)
             (keyA,keyB) ->
                 for own attrIdx, sorter of sortersArr
-                    comparison = sorter(_getKeyVal(keyA, attrIdx), _getKeyVal(keyB, attrIdx))
+                    comparison = sorter(_convertBlankToNull(keyA[attrIdx]), _convertBlankToNull(keyB[attrIdx]))
                     if order? and order[attrIdx] == "-"
                         comparison *= -1
                     return comparison if comparison != 0

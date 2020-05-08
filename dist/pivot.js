@@ -773,15 +773,13 @@
       };
 
       PivotData.prototype.arrSort = function(attrs, order) {
-        var _getKeyVal, a, sortersArr;
-        _getKeyVal = (function(_this) {
-          return function(key, attrIdx) {
-            var keyVal;
-            keyVal = key[attrIdx];
-            if (keyVal === _this.emptyValue) {
+        var _convertBlankToNull, a, sortersArr;
+        _convertBlankToNull = (function(_this) {
+          return function(attrVal) {
+            if (attrVal === _this.emptyValue) {
               return null;
             } else {
-              return keyVal;
+              return attrVal;
             }
           };
         })(this);
@@ -799,7 +797,7 @@
           for (attrIdx in sortersArr) {
             if (!hasProp.call(sortersArr, attrIdx)) continue;
             sorter = sortersArr[attrIdx];
-            comparison = sorter(_getKeyVal(keyA, attrIdx), _getKeyVal(keyB, attrIdx));
+            comparison = sorter(_convertBlankToNull(keyA[attrIdx]), _convertBlankToNull(keyB[attrIdx]));
             if ((order != null) && order[attrIdx] === "-") {
               comparison *= -1;
             }
