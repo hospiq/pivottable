@@ -421,10 +421,13 @@ callWithJQuery ($) ->
         #`order`: Array of "+" or "-" values, one per attribute. "-"
         #  indicates a descending sort.
         arrSort: (attrs, order) =>
+            # Convert empty value string back to null so it may be compared naturally to other values.
+            _convertEmptyToNull = (attrVal) => return if attrVal == @emptyValue then null else attrVal
+
             sortersArr = (getSort(@sorters, a) for a in attrs)
             (keyA,keyB) ->
                 for own attrIdx, sorter of sortersArr
-                    comparison = sorter(keyA[attrIdx], keyB[attrIdx])
+                    comparison = sorter(_convertEmptyToNull(keyA[attrIdx]), _convertEmptyToNull(keyB[attrIdx]))
                     if order? and order[attrIdx] == "-"
                         comparison *= -1
                     return comparison if comparison != 0
@@ -464,7 +467,7 @@ callWithJQuery ($) ->
                             agg = agg[aggIdx or 0]
                         return agg.value()
 
-                    keys.sort (a,b) => naturalSort(_getVal(a), _getVal(b)) * (if isDesc then -1 else 1)
+                    keys.sort (a,b) => getSort(@sorters, null)(_getVal(a), _getVal(b)) * (if isDesc then -1 else 1)
 
                 switch sortOrder
                     #Legacy sorts.
