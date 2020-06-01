@@ -585,6 +585,7 @@ callWithJQuery ($) ->
             return if $.isArray(agg) then agg else (agg ? {value: (-> null), format: -> ""})
 
         populateMetaAggregators: () =>
+            console.log('foo')
             if @opts.totalsMetaAggregator
                 totalsMetaAggregator = @opts.totalsMetaAggregator
                 #Create and populate meta-aggregators for each totals aggregator

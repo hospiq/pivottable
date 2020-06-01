@@ -996,6 +996,7 @@
 
       PivotData.prototype.populateMetaAggregators = function() {
         var aggregator, attrs, flatColKey, flatKey, flatRowKey, idx, key, metaAggTotals, metricIdxLoc, oppositeDimAttrs, oppositeDimFlatKey, ref, results, row, totals, totalsMetaAggregator;
+        console.log('foo');
         if (this.opts.totalsMetaAggregator) {
           totalsMetaAggregator = this.opts.totalsMetaAggregator;
           ref = this.tree;
