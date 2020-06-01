@@ -574,7 +574,7 @@ callWithJQuery ($) ->
             flatRowKey = rowKey.join(FLAT_KEY_DELIM)
             flatColKey = colKey.join(FLAT_KEY_DELIM)
             # Don't use meta aggregators if they are not populated. This can occur when using only rows or only columns
-            getMetaAgg = @opts.totalsMetaAggregator and not forceDefaultTotalsAgg and @metaAggRowTotals and @metaAggColTotals
+            getMetaAgg = @opts.totalsMetaAggregator and not forceDefaultTotalsAgg and @metaAggRowTotals.length > 0 and @metaAggColTotals.length > 0
             if rowKey.length == 0 and colKey.length == 0
                 agg = if getMetaAgg then @metaAggAllTotal else @allTotal
             else if rowKey.length == 0
