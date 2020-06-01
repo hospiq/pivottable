@@ -573,8 +573,11 @@ callWithJQuery ($) ->
         getAggregator: (rowKey, colKey, forceDefaultTotalsAgg = false) =>
             flatRowKey = rowKey.join(FLAT_KEY_DELIM)
             flatColKey = colKey.join(FLAT_KEY_DELIM)
+
+            getMetaAgg = @opts.totalsMetaAggregator and not forceDefaultTotalsAgg
             # Don't use meta aggregators if they are not populated. This can occur when using only rows or only columns
-            getMetaAgg = @opts.totalsMetaAggregator and not forceDefaultTotalsAgg and Object.keys(@metaAggRowTotals).length > 0 and Object.keys(@metaAggColTotals).length > 0
+            if getMetaAgg and (Object.keys(@metaAggRowTotals).length == 0 or Object.keys(@metaAggColTotals).length == 0)
+                return {value: (-> null), format: -> ""}
             if rowKey.length == 0 and colKey.length == 0
                 agg = if getMetaAgg then @metaAggAllTotal else @allTotal
             else if rowKey.length == 0
