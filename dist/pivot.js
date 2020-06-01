@@ -959,8 +959,9 @@
           if (!this.tree[flatRowKey][flatColKey]) {
             this.tree[flatRowKey][flatColKey] = aggregator(this, rowKey, colKey);
           }
-          return this.tree[flatRowKey][flatColKey].push(record);
+          this.tree[flatRowKey][flatColKey].push(record);
         }
+        return console.log('tree populated');
       };
 
       PivotData.prototype.getAggregator = function(rowKey, colKey, forceDefaultTotalsAgg) {
@@ -995,62 +996,58 @@
       };
 
       PivotData.prototype.populateMetaAggregators = function() {
-        var aggregator, attrs, flatColKey, flatKey, flatRowKey, idx, key, metaAggTotals, metricIdxLoc, oppositeDimAttrs, oppositeDimFlatKey, ref, results, row, totals, totalsMetaAggregator;
+        var aggregator, attrs, flatColKey, flatKey, flatRowKey, idx, key, l, len1, metaAggTotals, metricIdxLoc, oppositeDimAttrs, oppositeDimFlatKey, ref, ref1, ref2, ref3, ref4, row, totals, totalsMetaAggregator;
         console.log('foo');
         if (this.opts.totalsMetaAggregator) {
           totalsMetaAggregator = this.opts.totalsMetaAggregator;
           console.log(this.tree);
           ref = this.tree;
-          results = [];
           for (flatRowKey in ref) {
             if (!hasProp.call(ref, flatRowKey)) continue;
             row = ref[flatRowKey];
             console.log(row);
-            results.push((function() {
-              var l, len1, ref1, ref2, ref3, ref4, results1;
-              results1 = [];
-              for (flatColKey in row) {
-                if (!hasProp.call(row, flatColKey)) continue;
-                aggregator = row[flatColKey];
-                ref1 = [[this.rowTotals, this.metaAggRowTotals, this.colAttrs, flatRowKey, flatColKey], [this.colTotals, this.metaAggColTotals, this.rowAttrs, flatColKey, flatRowKey]];
-                for (l = 0, len1 = ref1.length; l < len1; l++) {
-                  ref2 = ref1[l], totals = ref2[0], metaAggTotals = ref2[1], oppositeDimAttrs = ref2[2], flatKey = ref2[3], oppositeDimFlatKey = ref2[4];
-                  if (!$.isArray(totals[flatKey])) {
-                    if (!(flatKey in metaAggTotals)) {
-                      metaAggTotals[flatKey] = totalsMetaAggregator();
-                    }
-                    metaAggTotals[flatKey].push(aggregator);
-                  } else {
-                    if (!(flatKey in metaAggTotals)) {
-                      metaAggTotals[flatKey] = totals[flatKey].map(function() {
-                        return totalsMetaAggregator();
-                      });
-                    }
-                    metricIdxLoc = oppositeDimAttrs.indexOf(this.multiAggAttr);
-                    idx = parseInt(oppositeDimFlatKey.split(FLAT_KEY_DELIM)[metricIdxLoc]);
-                    metaAggTotals[flatKey][idx].push(aggregator);
+            for (flatColKey in row) {
+              if (!hasProp.call(row, flatColKey)) continue;
+              aggregator = row[flatColKey];
+              ref1 = [[this.rowTotals, this.metaAggRowTotals, this.colAttrs, flatRowKey, flatColKey], [this.colTotals, this.metaAggColTotals, this.rowAttrs, flatColKey, flatRowKey]];
+              for (l = 0, len1 = ref1.length; l < len1; l++) {
+                ref2 = ref1[l], totals = ref2[0], metaAggTotals = ref2[1], oppositeDimAttrs = ref2[2], flatKey = ref2[3], oppositeDimFlatKey = ref2[4];
+                if (!$.isArray(totals[flatKey])) {
+                  if (!(flatKey in metaAggTotals)) {
+                    metaAggTotals[flatKey] = totalsMetaAggregator();
                   }
-                }
-                if (!$.isArray(this.allTotal)) {
-                  if (this.metaAggAllTotal === null) {
-                    this.metaAggAllTotal = totalsMetaAggregator();
-                  }
-                  results1.push(this.metaAggAllTotal.push(aggregator));
+                  metaAggTotals[flatKey].push(aggregator);
                 } else {
-                  if (!this.metaAggAllTotal) {
-                    this.metaAggAllTotal = this.allTotal.map(function() {
+                  if (!(flatKey in metaAggTotals)) {
+                    metaAggTotals[flatKey] = totals[flatKey].map(function() {
                       return totalsMetaAggregator();
                     });
                   }
-                  ref4 = (ref3 = this.multiAggAttr, indexOf.call(this.rowAttrs, ref3) >= 0) ? [flatRowKey, this.rowAttrs] : [flatColKey, this.colAttrs], key = ref4[0], attrs = ref4[1];
-                  idx = parseInt(key.split(FLAT_KEY_DELIM)[attrs.indexOf(this.multiAggAttr)]);
-                  results1.push(this.metaAggAllTotal[idx].push(aggregator));
+                  metricIdxLoc = oppositeDimAttrs.indexOf(this.multiAggAttr);
+                  idx = parseInt(oppositeDimFlatKey.split(FLAT_KEY_DELIM)[metricIdxLoc]);
+                  metaAggTotals[flatKey][idx].push(aggregator);
                 }
               }
-              return results1;
-            }).call(this));
+              if (!$.isArray(this.allTotal)) {
+                if (this.metaAggAllTotal === null) {
+                  this.metaAggAllTotal = totalsMetaAggregator();
+                }
+                this.metaAggAllTotal.push(aggregator);
+              } else {
+                if (!this.metaAggAllTotal) {
+                  this.metaAggAllTotal = this.allTotal.map(function() {
+                    return totalsMetaAggregator();
+                  });
+                }
+                ref4 = (ref3 = this.multiAggAttr, indexOf.call(this.rowAttrs, ref3) >= 0) ? [flatRowKey, this.rowAttrs] : [flatColKey, this.colAttrs], key = ref4[0], attrs = ref4[1];
+                idx = parseInt(key.split(FLAT_KEY_DELIM)[attrs.indexOf(this.multiAggAttr)]);
+                this.metaAggAllTotal[idx].push(aggregator);
+              }
+            }
           }
-          return results;
+          if (!this.tree) {
+            return console.log('no tree');
+          }
         }
       };
 

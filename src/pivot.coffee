@@ -623,7 +623,7 @@ callWithJQuery ($) ->
                             @metaAggAllTotal[idx].push(aggregator)
 
                 if not @tree
-                    console.log(@ro)
+                    console.log('no tree')
 
 
     #expose these to the outside world
