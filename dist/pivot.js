@@ -773,8 +773,8 @@
       };
 
       PivotData.prototype.arrSort = function(attrs, order) {
-        var _convertBlankToNull, a, sortersArr;
-        _convertBlankToNull = (function(_this) {
+        var _convertEmptyToNull, a, sortersArr;
+        _convertEmptyToNull = (function(_this) {
           return function(attrVal) {
             if (attrVal === _this.emptyValue) {
               return null;
@@ -797,7 +797,7 @@
           for (attrIdx in sortersArr) {
             if (!hasProp.call(sortersArr, attrIdx)) continue;
             sorter = sortersArr[attrIdx];
-            comparison = sorter(_convertBlankToNull(keyA[attrIdx]), _convertBlankToNull(keyB[attrIdx]));
+            comparison = sorter(_convertEmptyToNull(keyA[attrIdx]), _convertEmptyToNull(keyB[attrIdx]));
             if ((order != null) && order[attrIdx] === "-") {
               comparison *= -1;
             }
@@ -996,6 +996,7 @@
 
       PivotData.prototype.populateMetaAggregators = function() {
         var aggregator, attrs, flatColKey, flatKey, flatRowKey, idx, key, metaAggTotals, metricIdxLoc, oppositeDimAttrs, oppositeDimFlatKey, ref, results, row, totals, totalsMetaAggregator;
+        console.log('foo');
         if (this.opts.totalsMetaAggregator) {
           totalsMetaAggregator = this.opts.totalsMetaAggregator;
           ref = this.tree;
