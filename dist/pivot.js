@@ -999,6 +999,7 @@
         console.log('foo');
         if (this.opts.totalsMetaAggregator) {
           totalsMetaAggregator = this.opts.totalsMetaAggregator;
+          console.log(this.tree);
           ref = this.tree;
           results = [];
           for (flatRowKey in ref) {

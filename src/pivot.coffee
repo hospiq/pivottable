@@ -589,6 +589,7 @@ callWithJQuery ($) ->
             if @opts.totalsMetaAggregator
                 totalsMetaAggregator = @opts.totalsMetaAggregator
                 #Create and populate meta-aggregators for each totals aggregator
+                console.log(@tree)
                 for own flatRowKey, row of @tree
                     console.log(row)
                     for own flatColKey, aggregator of row
