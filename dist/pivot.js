@@ -773,8 +773,8 @@
       };
 
       PivotData.prototype.arrSort = function(attrs, order) {
-        var _convertBlankToNull, a, sortersArr;
-        _convertBlankToNull = (function(_this) {
+        var _convertEmptyToNull, a, sortersArr;
+        _convertEmptyToNull = (function(_this) {
           return function(attrVal) {
             if (attrVal === _this.emptyValue) {
               return null;
@@ -797,7 +797,7 @@
           for (attrIdx in sortersArr) {
             if (!hasProp.call(sortersArr, attrIdx)) continue;
             sorter = sortersArr[attrIdx];
-            comparison = sorter(_convertBlankToNull(keyA[attrIdx]), _convertBlankToNull(keyB[attrIdx]));
+            comparison = sorter(_convertEmptyToNull(keyA[attrIdx]), _convertEmptyToNull(keyB[attrIdx]));
             if ((order != null) && order[attrIdx] === "-") {
               comparison *= -1;
             }
@@ -971,6 +971,9 @@
         flatRowKey = rowKey.join(FLAT_KEY_DELIM);
         flatColKey = colKey.join(FLAT_KEY_DELIM);
         getMetaAgg = this.opts.totalsMetaAggregator && !forceDefaultTotalsAgg;
+        if (getMetaAgg && (Object.keys(this.metaAggRowTotals).length === 0 || Object.keys(this.metaAggColTotals).length === 0)) {
+          return this.opts.blankMetaAggregator();
+        }
         if (rowKey.length === 0 && colKey.length === 0) {
           agg = getMetaAgg ? this.metaAggAllTotal : this.allTotal;
         } else if (rowKey.length === 0) {
