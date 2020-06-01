@@ -567,6 +567,7 @@ callWithJQuery ($) ->
                 if not @tree[flatRowKey][flatColKey]
                     @tree[flatRowKey][flatColKey] = aggregator(this, rowKey, colKey)
                 @tree[flatRowKey][flatColKey].push record
+            console.log('tree populated')
 
         #In multi-metric mode, totals aggregators are arrays.
         getAggregator: (rowKey, colKey, forceDefaultTotalsAgg = false) =>
@@ -620,6 +621,9 @@ callWithJQuery ($) ->
                             [key, attrs] = if @multiAggAttr in @rowAttrs then [flatRowKey, @rowAttrs] else [flatColKey, @colAttrs]
                             idx = parseInt(key.split(FLAT_KEY_DELIM)[attrs.indexOf(@multiAggAttr)])
                             @metaAggAllTotal[idx].push(aggregator)
+
+                if not @tree
+                    console.log(@ro)
 
 
     #expose these to the outside world
