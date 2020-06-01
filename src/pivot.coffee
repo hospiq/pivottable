@@ -567,12 +567,17 @@ callWithJQuery ($) ->
                 if not @tree[flatRowKey][flatColKey]
                     @tree[flatRowKey][flatColKey] = aggregator(this, rowKey, colKey)
                 @tree[flatRowKey][flatColKey].push record
+            console.log('tree populated')
 
         #In multi-metric mode, totals aggregators are arrays.
         getAggregator: (rowKey, colKey, forceDefaultTotalsAgg = false) =>
             flatRowKey = rowKey.join(FLAT_KEY_DELIM)
             flatColKey = colKey.join(FLAT_KEY_DELIM)
+
             getMetaAgg = @opts.totalsMetaAggregator and not forceDefaultTotalsAgg
+            # Don't use meta aggregators if they are not populated. This can occur when using only rows or only columns
+            if getMetaAgg and (Object.keys(@metaAggRowTotals).length == 0 or Object.keys(@metaAggColTotals).length == 0)
+                return @opts.blankMetaAggregator()
             if rowKey.length == 0 and colKey.length == 0
                 agg = if getMetaAgg then @metaAggAllTotal else @allTotal
             else if rowKey.length == 0
@@ -617,7 +622,6 @@ callWithJQuery ($) ->
                             [key, attrs] = if @multiAggAttr in @rowAttrs then [flatRowKey, @rowAttrs] else [flatColKey, @colAttrs]
                             idx = parseInt(key.split(FLAT_KEY_DELIM)[attrs.indexOf(@multiAggAttr)])
                             @metaAggAllTotal[idx].push(aggregator)
-
 
     #expose these to the outside world
     $.pivotUtilities = {aggregatorTemplates, aggregators, renderers, derivers, locales,
