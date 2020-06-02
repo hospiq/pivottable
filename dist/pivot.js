@@ -972,7 +972,7 @@
         flatColKey = colKey.join(FLAT_KEY_DELIM);
         getMetaAgg = this.opts.totalsMetaAggregator && !forceDefaultTotalsAgg;
         if (getMetaAgg && (Object.keys(this.metaAggRowTotals).length === 0 || Object.keys(this.metaAggColTotals).length === 0)) {
-          return this.opts.blankMetaAggregator();
+          return this.opts.totalsMetaAggregator();
         }
         if (rowKey.length === 0 && colKey.length === 0) {
           agg = getMetaAgg ? this.metaAggAllTotal : this.allTotal;
