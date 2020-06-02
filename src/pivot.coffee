@@ -575,8 +575,8 @@ callWithJQuery ($) ->
 
             getMetaAgg = @opts.totalsMetaAggregator and not forceDefaultTotalsAgg
             # Don't use meta aggregators if they are not populated. This can occur when using only rows or only columns
-            getMetaAgg = getMetaAgg and (Object.keys(@metaAggRowTotals).length == 0 or
-                                         Object.keys(@metaAggColTotals).length == 0)
+            getMetaAgg = getMetaAgg and (Object.keys(@metaAggRowTotals).length > 0 and
+                                         Object.keys(@metaAggColTotals).length > 0)
             if rowKey.length == 0 and colKey.length == 0
                 agg = if getMetaAgg then @metaAggAllTotal else @allTotal
             else if rowKey.length == 0
