@@ -573,16 +573,16 @@ callWithJQuery ($) ->
             flatRowKey = rowKey.join(FLAT_KEY_DELIM)
             flatColKey = colKey.join(FLAT_KEY_DELIM)
 
-            getMetaAgg = @opts.totalsMetaAggregator and not forceDefaultTotalsAgg
+            useMetaAgg = @opts.totalsMetaAggregator and not forceDefaultTotalsAgg
             # Don't use meta aggregators if they are not populated. This can occur when using only rows or only columns
-            getMetaAgg = getMetaAgg and (Object.keys(@metaAggRowTotals).length > 0 and
-                                         Object.keys(@metaAggColTotals).length > 0)
+            useMetaAgg = useMetaAgg and Object.keys(@metaAggRowTotals).length > 0 and
+                         Object.keys(@metaAggColTotals).length > 0
             if rowKey.length == 0 and colKey.length == 0
-                agg = if getMetaAgg then @metaAggAllTotal else @allTotal
+                agg = if useMetaAgg then @metaAggAllTotal else @allTotal
             else if rowKey.length == 0
-                agg = (if getMetaAgg then @metaAggColTotals else @colTotals)[flatColKey]
+                agg = (if useMetaAgg then @metaAggColTotals else @colTotals)[flatColKey]
             else if colKey.length == 0
-                agg = (if getMetaAgg then @metaAggRowTotals else @rowTotals)[flatRowKey]
+                agg = (if useMetaAgg then @metaAggRowTotals else @rowTotals)[flatRowKey]
             else
                 agg = @tree[flatRowKey][flatColKey]
             #In multi-metric mode, don't bother creating default aggregators.

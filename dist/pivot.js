@@ -964,20 +964,20 @@
       };
 
       PivotData.prototype.getAggregator = function(rowKey, colKey, forceDefaultTotalsAgg) {
-        var agg, flatColKey, flatRowKey, getMetaAgg;
+        var agg, flatColKey, flatRowKey, useMetaAgg;
         if (forceDefaultTotalsAgg == null) {
           forceDefaultTotalsAgg = false;
         }
         flatRowKey = rowKey.join(FLAT_KEY_DELIM);
         flatColKey = colKey.join(FLAT_KEY_DELIM);
-        getMetaAgg = this.opts.totalsMetaAggregator && !forceDefaultTotalsAgg;
-        getMetaAgg = getMetaAgg && (Object.keys(this.metaAggRowTotals).length > 0 && Object.keys(this.metaAggColTotals).length > 0);
+        useMetaAgg = this.opts.totalsMetaAggregator && !forceDefaultTotalsAgg;
+        useMetaAgg = useMetaAgg && Object.keys(this.metaAggRowTotals).length > 0 && Object.keys(this.metaAggColTotals).length > 0;
         if (rowKey.length === 0 && colKey.length === 0) {
-          agg = getMetaAgg ? this.metaAggAllTotal : this.allTotal;
+          agg = useMetaAgg ? this.metaAggAllTotal : this.allTotal;
         } else if (rowKey.length === 0) {
-          agg = (getMetaAgg ? this.metaAggColTotals : this.colTotals)[flatColKey];
+          agg = (useMetaAgg ? this.metaAggColTotals : this.colTotals)[flatColKey];
         } else if (colKey.length === 0) {
-          agg = (getMetaAgg ? this.metaAggRowTotals : this.rowTotals)[flatRowKey];
+          agg = (useMetaAgg ? this.metaAggRowTotals : this.rowTotals)[flatRowKey];
         } else {
           agg = this.tree[flatRowKey][flatColKey];
         }
