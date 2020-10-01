@@ -148,35 +148,35 @@
               val: null,
               sorter: getSort(data != null ? data.sorters : void 0, attr),
               push: function(record) {
-                var ref, ref1, ref2, x;
+                var ref, ref1, x;
                 x = record[attr];
-                if (mode === "min" || mode === "max") {
-                  x = parseFloat(x);
-                  if (!isNaN(x)) {
-                    this.val = Math[mode](x, (ref = this.val) != null ? ref : x);
+                if ((mode === "min" || mode === "max") && (x != null)) {
+                  if (mode === "min" && (!(this.val != null) || x < this.val)) {
+                    this.val = x;
+                  }
+                  if (mode === "max" && (!(this.val != null) || x > this.val)) {
+                    this.val = x;
                   }
                 }
                 if (mode === "first") {
-                  if (this.sorter(x, (ref1 = this.val) != null ? ref1 : x) <= 0) {
+                  if (this.sorter(x, (ref = this.val) != null ? ref : x) <= 0) {
                     this.val = x;
                   }
                 }
                 if (mode === "last") {
-                  if (this.sorter(x, (ref2 = this.val) != null ? ref2 : x) >= 0) {
+                  if (this.sorter(x, (ref1 = this.val) != null ? ref1 : x) >= 0) {
                     return this.val = x;
                   }
                 }
               },
               value: function() {
-                return this.val;
-              },
-              format: function(x) {
-                if (isNaN(x)) {
-                  return x;
+                if ((this.val != null)) {
+                  return this.val;
                 } else {
-                  return formatter(x);
+                  return "";
                 }
               },
+              format: formatter,
               numInputs: attr != null ? 0 : 1
             };
           };
