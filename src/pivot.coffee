@@ -68,13 +68,13 @@ callWithJQuery ($) ->
             sorter: getSort(data?.sorters, attr)
             push: (record) ->
                 x = record[attr]
-                if mode in ["min", "max"]
-                    x = parseFloat(x)
-                    if not isNaN x then @val = Math[mode](x, @val ? x)
+                if mode in ["min", "max"] and (x?)
+                    @val = x if mode == "min" and (not (@val?) or x < @val)
+                    @val = x if mode == "max" and (not (@val?) or x > @val)
                 if mode == "first" then @val = x if @sorter(x, @val ? x) <= 0
                 if mode == "last"  then @val = x if @sorter(x, @val ? x) >= 0
-            value: -> @val
-            format: (x) -> if isNaN(x) then x else formatter(x)
+            value: -> if (@val?) then @val else ""
+            format: formatter
             numInputs: if attr? then 0 else 1
 
         quantile: (q, formatter=usFmt) -> ([attr]) -> (data, rowKey, colKey) ->
