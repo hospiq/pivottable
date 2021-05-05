@@ -273,6 +273,62 @@
           };
         };
       },
+      sumMinusSum: function(formatter) {
+        if (formatter == null) {
+          formatter = usFmt;
+        }
+        return function(arg) {
+          var denom, num;
+          num = arg[0], denom = arg[1];
+          return function(data, rowKey, colKey) {
+            return {
+              sumNum: 0,
+              sumDenom: 0,
+              push: function(record) {
+                if (!isNaN(parseFloat(record[num]))) {
+                  this.sumNum += parseFloat(record[num]);
+                }
+                if (!isNaN(parseFloat(record[denom]))) {
+                  return this.sumDenom += parseFloat(record[denom]);
+                }
+              },
+              value: function() {
+                return this.sumNum - this.sumDenom;
+              },
+              format: formatter,
+              numInputs: (num != null) && (denom != null) ? 0 : 2
+            };
+          };
+        };
+      },
+      sumPlusSum: function(formatter) {
+        if (formatter == null) {
+          formatter = usFmt;
+        }
+        return function(arg) {
+          var denom, num;
+          num = arg[0], denom = arg[1];
+          return function(data, rowKey, colKey) {
+            return {
+              sumNum: 0,
+              sumDenom: 0,
+              push: function(record) {
+                if (!isNaN(parseFloat(record[num]))) {
+                  this.sumNum += parseFloat(record[num]);
+                }
+                if (!isNaN(parseFloat(record[denom]))) {
+                  return this.sumDenom += parseFloat(record[denom]);
+                }
+              },
+              value: function() {
+                return this.sumNum + this.sumDenom;
+              },
+              format: formatter,
+              numInputs: (num != null) && (denom != null) ? 0 : 2
+            };
+          };
+        };
+      },
       sumOverSum: function(formatter) {
         if (formatter == null) {
           formatter = usFmt;
@@ -421,6 +477,8 @@
         "Maximum": tpl.max(usFmt),
         "First": tpl.first(usFmt),
         "Last": tpl.last(usFmt),
+        "Sum minus Sum": tpl.sumMinusSum(usFmt),
+        "Sum plus Sum": tpl.sumPlusSum(usFmt),
         "Sum over Sum": tpl.sumOverSum(usFmt),
         "80% Upper Bound": tpl.sumOverSumBound80(true, usFmt),
         "80% Lower Bound": tpl.sumOverSumBound80(false, usFmt),
