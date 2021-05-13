@@ -38,6 +38,17 @@ callWithJQuery ($) ->
     usFmtInt = numberFormat(digitsAfterDecimal: 0)
     usFmtPct = numberFormat(digitsAfterDecimal:1, scaler: 100, suffix: "%")
 
+    createArithmeticSumAggregator = (arithmeticFn) ->
+        return (formatter=usFmt) -> ([num, denom]) -> (data, rowKey, colKey) ->
+            sumNum: 0
+            sumDenom: 0
+            push: (record) ->
+                @sumNum   += parseFloat(record[num])   if not isNaN parseFloat(record[num])
+                @sumDenom += parseFloat(record[denom]) if not isNaN parseFloat(record[denom])
+            value: -> arithmeticFn(@sumNum, @sumDenom)
+            format: formatter
+            numInputs: if num? and denom? then 0 else 2
+
     aggregatorTemplates =
         count: (formatter=usFmtInt) -> () -> (data, rowKey, colKey) ->
             count: 0
@@ -112,35 +123,9 @@ callWithJQuery ($) ->
             format: formatter
             numInputs: if attr? then 0 else 1
 
-        sumMinusSum: (formatter=usFmt) -> ([num, denom]) -> (data, rowKey, colKey) ->
-            sumNum: 0
-            sumDenom: 0
-            push: (record) ->
-                @sumNum   += parseFloat(record[num])   if not isNaN parseFloat(record[num])
-                @sumDenom += parseFloat(record[denom]) if not isNaN parseFloat(record[denom])
-            value: -> @sumNum - @sumDenom
-            format: formatter
-            numInputs: if num? and denom? then 0 else 2
-
-         sumPlusSum: (formatter=usFmt) -> ([num, denom]) -> (data, rowKey, colKey) ->
-            sumNum: 0
-            sumDenom: 0
-            push: (record) ->
-                @sumNum   += parseFloat(record[num])   if not isNaN parseFloat(record[num])
-                @sumDenom += parseFloat(record[denom]) if not isNaN parseFloat(record[denom])
-            value: -> @sumNum + @sumDenom
-            format: formatter
-            numInputs: if num? and denom? then 0 else 2
-
-        sumOverSum: (formatter=usFmt) -> ([num, denom]) -> (data, rowKey, colKey) ->
-            sumNum: 0
-            sumDenom: 0
-            push: (record) ->
-                @sumNum   += parseFloat(record[num])   if not isNaN parseFloat(record[num])
-                @sumDenom += parseFloat(record[denom]) if not isNaN parseFloat(record[denom])
-            value: -> @sumNum/@sumDenom
-            format: formatter
-            numInputs: if num? and denom? then 0 else 2
+        sumMinusSum: createArithmeticSumAggregator((x, y) -> x - y)
+        sumPlusSum: createArithmeticSumAggregator((x, y) -> x + y)
+        sumOverSum: createArithmeticSumAggregator((x, y) -> x / y)
 
         sumOverSumBound80: (upper=true, formatter=usFmt) -> ([num, denom]) -> (data, rowKey, colKey) ->
             sumNum: 0
