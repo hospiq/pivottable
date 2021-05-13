@@ -20,7 +20,7 @@
     /*
     Utilities
      */
-    var FLAT_KEY_DELIM, PivotData, addSeparators, aggregatorTemplates, aggregators, calculateValueRanges, convertToBarchart, dayNamesEn, derivers, generateBarchartScalers, generateHeatmappers, getSort, locales, mthNamesEn, naturalSort, numberFormat, pivotTableRenderer, rd, renderers, rx, rz, sortAs, usFmt, usFmtInt, usFmtPct, zeroPad;
+    var FLAT_KEY_DELIM, PivotData, addSeparators, aggregatorTemplates, aggregators, calculateValueRanges, convertToBarchart, createArithmeticSumAggregator, dayNamesEn, derivers, generateBarchartScalers, generateHeatmappers, getSort, locales, mthNamesEn, naturalSort, numberFormat, pivotTableRenderer, rd, renderers, rx, rz, sortAs, usFmt, usFmtInt, usFmtPct, zeroPad;
     addSeparators = function(nStr, thousandsSep, decimalSep) {
       var rgx, x, x1, x2;
       nStr += '';
@@ -62,6 +62,36 @@
       scaler: 100,
       suffix: "%"
     });
+    createArithmeticSumAggregator = function(arithmeticFn) {
+      return function(formatter) {
+        if (formatter == null) {
+          formatter = usFmt;
+        }
+        return function(arg) {
+          var denom, num;
+          num = arg[0], denom = arg[1];
+          return function(data, rowKey, colKey) {
+            return {
+              sumNum: 0,
+              sumDenom: 0,
+              push: function(record) {
+                if (!isNaN(parseFloat(record[num]))) {
+                  this.sumNum += parseFloat(record[num]);
+                }
+                if (!isNaN(parseFloat(record[denom]))) {
+                  return this.sumDenom += parseFloat(record[denom]);
+                }
+              },
+              value: function() {
+                return arithmeticFn(this.sumNum, this.sumDenom);
+              },
+              format: formatter,
+              numInputs: (num != null) && (denom != null) ? 0 : 2
+            };
+          };
+        };
+      };
+    };
     aggregatorTemplates = {
       count: function(formatter) {
         if (formatter == null) {
@@ -273,90 +303,15 @@
           };
         };
       },
-      sumMinusSum: function(formatter) {
-        if (formatter == null) {
-          formatter = usFmt;
-        }
-        return function(arg) {
-          var denom, num;
-          num = arg[0], denom = arg[1];
-          return function(data, rowKey, colKey) {
-            return {
-              sumNum: 0,
-              sumDenom: 0,
-              push: function(record) {
-                if (!isNaN(parseFloat(record[num]))) {
-                  this.sumNum += parseFloat(record[num]);
-                }
-                if (!isNaN(parseFloat(record[denom]))) {
-                  return this.sumDenom += parseFloat(record[denom]);
-                }
-              },
-              value: function() {
-                return this.sumNum - this.sumDenom;
-              },
-              format: formatter,
-              numInputs: (num != null) && (denom != null) ? 0 : 2
-            };
-          };
-        };
-      },
-      sumPlusSum: function(formatter) {
-        if (formatter == null) {
-          formatter = usFmt;
-        }
-        return function(arg) {
-          var denom, num;
-          num = arg[0], denom = arg[1];
-          return function(data, rowKey, colKey) {
-            return {
-              sumNum: 0,
-              sumDenom: 0,
-              push: function(record) {
-                if (!isNaN(parseFloat(record[num]))) {
-                  this.sumNum += parseFloat(record[num]);
-                }
-                if (!isNaN(parseFloat(record[denom]))) {
-                  return this.sumDenom += parseFloat(record[denom]);
-                }
-              },
-              value: function() {
-                return this.sumNum + this.sumDenom;
-              },
-              format: formatter,
-              numInputs: (num != null) && (denom != null) ? 0 : 2
-            };
-          };
-        };
-      },
-      sumOverSum: function(formatter) {
-        if (formatter == null) {
-          formatter = usFmt;
-        }
-        return function(arg) {
-          var denom, num;
-          num = arg[0], denom = arg[1];
-          return function(data, rowKey, colKey) {
-            return {
-              sumNum: 0,
-              sumDenom: 0,
-              push: function(record) {
-                if (!isNaN(parseFloat(record[num]))) {
-                  this.sumNum += parseFloat(record[num]);
-                }
-                if (!isNaN(parseFloat(record[denom]))) {
-                  return this.sumDenom += parseFloat(record[denom]);
-                }
-              },
-              value: function() {
-                return this.sumNum / this.sumDenom;
-              },
-              format: formatter,
-              numInputs: (num != null) && (denom != null) ? 0 : 2
-            };
-          };
-        };
-      },
+      sumMinusSum: createArithmeticSumAggregator(function(x, y) {
+        return x - y;
+      }),
+      sumPlusSum: createArithmeticSumAggregator(function(x, y) {
+        return x + y;
+      }),
+      sumOverSum: createArithmeticSumAggregator(function(x, y) {
+        return x / y;
+      }),
       sumOverSumBound80: function(upper, formatter) {
         if (upper == null) {
           upper = true;
@@ -1129,7 +1084,7 @@
     Default Renderer for hierarchical table layout
      */
     pivotTableRenderer = function(pivotData, opts, rendererType) {
-      var agg, aggIdx, aggregator, colAttr, colAttrIdx, colAttrs, colKey, colKeyIdx, colKeys, createHeader, createTotalsCell, createTotalsRow, defaults, flatColKey, flatRowKey, getClickHandler, getHeaderClickHandler, heatmappers, i, l, len1, len2, len3, len4, len5, len6, len7, len8, n, o, ref, ref1, ref2, ref3, result, rowAttr, rowAttrIdx, rowAttrs, rowKey, rowKeyIdx, rowKeys, scalers, spanSize, t, tbody, td, th, thead, totalAggregator, tr, txt, u, val, valueRanges, w, x, y, z;
+      var agg, aggIdx, aggregator, colAttr, colAttrIdx, colAttrs, colKey, colKeyIdx, colKeys, createHeader, createTotalsCell, createTotalsRow, defaults, flatColKey, flatRowKey, getClickHandler, getHeaderClickHandler, heatmappers, i, i1, l, len1, len2, len3, len4, len5, len6, len7, len8, n, o, ref, ref1, ref2, ref3, result, rowAttr, rowAttrIdx, rowAttrs, rowKey, rowKeyIdx, rowKeys, scalers, spanSize, t, tbody, td, th, thead, totalAggregator, tr, txt, u, val, valueRanges, w, x, z;
       defaults = {
         table: {
           clickCallback: null
@@ -1379,7 +1334,7 @@
         totalAggregator = pivotData.getAggregator(rowKey, []);
         if ($.isArray(totalAggregator)) {
           if (colAttrs.length > 1) {
-            for (aggIdx = y = 0, len7 = totalAggregator.length; y < len7; aggIdx = ++y) {
+            for (aggIdx = z = 0, len7 = totalAggregator.length; z < len7; aggIdx = ++z) {
               agg = totalAggregator[aggIdx];
               createTotalsCell(agg, aggIdx);
             }
@@ -1390,7 +1345,7 @@
         tbody.appendChild(tr);
       }
       createTotalsRow = function(aggIdx) {
-        var createGrandTotalCell, i1, len8, len9, z;
+        var createGrandTotalCell, i1, j1, len8, len9;
         tr = document.createElement("tr");
         th = document.createElement("th");
         th.className = "pvtTotalLabel pvtColTotalLabel";
@@ -1403,7 +1358,7 @@
           th.onclick = getHeaderClickHandler("row", "totals", aggIdx || 0);
         }
         tr.appendChild(th);
-        for (colKeyIdx = z = 0, len8 = colKeys.length; z < len8; colKeyIdx = ++z) {
+        for (colKeyIdx = i1 = 0, len8 = colKeys.length; i1 < len8; colKeyIdx = ++i1) {
           colKey = colKeys[colKeyIdx];
           totalAggregator = pivotData.getAggregator([], colKey);
           if (aggIdx != null) {
@@ -1441,7 +1396,7 @@
           createGrandTotalCell(totalAggregator[aggIdx]);
         } else {
           if (colAttrs.length > 1) {
-            for (aggIdx = i1 = 0, len9 = totalAggregator.length; i1 < len9; aggIdx = ++i1) {
+            for (aggIdx = j1 = 0, len9 = totalAggregator.length; j1 < len9; aggIdx = ++j1) {
               agg = totalAggregator[aggIdx];
               createGrandTotalCell(agg, aggIdx);
             }
@@ -1452,7 +1407,7 @@
       if ($.isArray(pivotData.aggregator) && (ref2 = pivotData.multiAggAttr, indexOf.call(rowAttrs, ref2) >= 0)) {
         if (rowAttrs.length > 1) {
           ref3 = pivotData.aggregator;
-          for (aggIdx = z = 0, len8 = ref3.length; z < len8; aggIdx = ++z) {
+          for (aggIdx = i1 = 0, len8 = ref3.length; i1 < len8; aggIdx = ++i1) {
             agg = ref3[aggIdx];
             createTotalsRow(aggIdx);
           }
